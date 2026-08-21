@@ -1431,7 +1431,15 @@ function updateEnemies() {
         // 기지 도착
         if (!targetTile) {
 
-            baseHP -= 10;
+            if (enemy.type === "boss") {
+
+                // 보스가 기지에 도달하면 즉시 패배
+                baseHP = 0;
+
+            } else {
+
+                baseHP -= 10;
+            }
 
             enemies.splice(i, 1);
 
