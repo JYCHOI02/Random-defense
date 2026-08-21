@@ -114,7 +114,8 @@ const towerRarities = {
         shortName: "N",
         chance: 59.9,
         multiplier: 1.0,
-        color: "#c9c9c9"
+        color: "#c9c9c9",
+        sellPrice: 20
     },
 
     rare: {
@@ -122,7 +123,8 @@ const towerRarities = {
         shortName: "R",
         chance: 25.0,
         multiplier: 1.5,
-        color: "#4da3ff"
+        color: "#4da3ff",
+        sellPrice: 30
     },
 
     unique: {
@@ -130,7 +132,8 @@ const towerRarities = {
         shortName: "U",
         chance: 13.0,
         multiplier: 2.5,
-        color: "#b56cff"
+        color: "#b56cff",
+        sellPrice: 60
     },
 
     legendary: {
@@ -138,7 +141,8 @@ const towerRarities = {
         shortName: "L",
         chance: 2.0,
         multiplier: 5.0,
-        color: "#ffd34d"
+        color: "#ffd34d",
+        sellPrice: 100
     },
 
     superLegendary: {
@@ -146,7 +150,8 @@ const towerRarities = {
         shortName: "SL",
         chance: 0.1,
         multiplier: 20.0,
-        color: "#ff4d7d"
+        color: "#ff4d7d",
+        sellPrice: 1000
     }
 };
 
@@ -165,6 +170,9 @@ const towerInventory = [];
 let draggingTower = null;
 let dragX = 0;
 let dragY = 0;
+
+// 판매 버튼에 마우스가 올라가 있는 인벤토리 인덱스
+let hoveredSellIndex = -1;
 
 // 카드가 배치된 하단 영역
 const inventoryArea = {
@@ -485,6 +493,52 @@ function getInventoryCardRect(index) {
 }
 
 
+function getSellButtonRect(index) {
+
+    const cardRect =
+        getInventoryCardRect(index);
+
+    const size = 16;
+
+    return {
+        x:
+            cardRect.x +
+            cardRect.width -
+            size -
+            3,
+
+        y: cardRect.y + 3,
+
+        width: size,
+        height: size
+    };
+}
+
+
+function sellInventoryTower(index) {
+
+    const towerData =
+        towerInventory[index];
+
+    if (!towerData) return;
+
+    const rarity =
+        towerRarities[towerData.rarity];
+
+    const sellPrice =
+        rarity.sellPrice || 0;
+
+    gold += sellPrice;
+
+    towerInventory.splice(index, 1);
+
+    draggingTower = null;
+
+    updateUI();
+    draw();
+}
+
+
 function getCanvasPosition(event) {
 
     const rect =
@@ -666,10 +720,34 @@ canvas.addEventListener("mousemove", (event) => {
         dragY = y;
 
         hoveredTower = null;
+        hoveredSellIndex = -1;
 
         draw();
 
         return;
+    }
+
+    hoveredSellIndex = -1;
+
+    for (
+        let i = 0;
+        i < towerInventory.length;
+        i++
+    ) {
+
+        const sellRect =
+            getSellButtonRect(i);
+
+        if (
+            x >= sellRect.x &&
+            x <= sellRect.x + sellRect.width &&
+            y >= sellRect.y &&
+            y <= sellRect.y + sellRect.height
+        ) {
+
+            hoveredSellIndex = i;
+            break;
+        }
     }
 
     hoveredTower = null;
@@ -727,6 +805,29 @@ canvas.addEventListener("mousedown", (event) => {
 
         summonTower();
         return;
+    }
+
+    // 인벤토리 카드 - 판매 버튼
+    for (
+        let i = 0;
+        i < towerInventory.length;
+        i++
+    ) {
+
+        const sellRect =
+            getSellButtonRect(i);
+
+        if (
+            x >= sellRect.x &&
+            x <= sellRect.x + sellRect.width &&
+            y >= sellRect.y &&
+            y <= sellRect.y + sellRect.height
+        ) {
+
+            sellInventoryTower(i);
+
+            return;
+        }
     }
 
     // 인벤토리 카드 드래그 시작
@@ -2514,8 +2615,137 @@ function drawTowerInventory() {
                 cx,
                 rect.y + 57
             );
+
+
+            // 판매 버튼 (X)
+            const sellRect =
+                getSellButtonRect(index);
+
+            const sellCx =
+                sellRect.x + sellRect.width / 2;
+
+            const sellCy =
+                sellRect.y + sellRect.height / 2;
+
+            ctx.fillStyle =
+                "rgba(200,55,55,0.9)";
+
+            ctx.beginPath();
+
+            ctx.arc(
+                sellCx,
+                sellCy,
+                sellRect.width / 2,
+                0,
+                Math.PI * 2
+            );
+
+            ctx.fill();
+
+            ctx.strokeStyle =
+                "rgba(255,255,255,0.9)";
+
+            ctx.lineWidth = 1.5;
+
+            ctx.beginPath();
+
+            ctx.moveTo(
+                sellRect.x + 4,
+                sellRect.y + 4
+            );
+
+            ctx.lineTo(
+                sellRect.x + sellRect.width - 4,
+                sellRect.y + sellRect.height - 4
+            );
+
+            ctx.moveTo(
+                sellRect.x + sellRect.width - 4,
+                sellRect.y + 4
+            );
+
+            ctx.lineTo(
+                sellRect.x + 4,
+                sellRect.y + sellRect.height - 4
+            );
+
+            ctx.stroke();
         }
     );
+
+
+    // 판매 가격 툴팁
+    if (
+        hoveredSellIndex >= 0 &&
+        towerInventory[hoveredSellIndex]
+    ) {
+
+        const tooltipTower =
+            towerInventory[hoveredSellIndex];
+
+        const tooltipRarity =
+            towerRarities[
+                tooltipTower.rarity
+            ];
+
+        const cardRect =
+            getInventoryCardRect(
+                hoveredSellIndex
+            );
+
+        const tooltipText =
+            "판매 " +
+            tooltipRarity.sellPrice +
+            "G";
+
+        ctx.font =
+            "bold 11px Arial";
+
+        const textWidth =
+            ctx.measureText(tooltipText).width;
+
+        const tooltipWidth =
+            textWidth + 16;
+
+        const tooltipHeight = 22;
+
+        const tooltipX =
+            cardRect.x +
+            cardRect.width / 2 -
+            tooltipWidth / 2;
+
+        const tooltipY =
+            cardRect.y - tooltipHeight - 6;
+
+        ctx.fillStyle =
+            "rgba(15,18,25,0.95)";
+
+        ctx.strokeStyle =
+            "rgba(255,255,255,0.25)";
+
+        ctx.lineWidth = 1;
+
+        ctx.beginPath();
+        ctx.roundRect(
+            tooltipX,
+            tooltipY,
+            tooltipWidth,
+            tooltipHeight,
+            6
+        );
+
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#ffd76b";
+        ctx.textAlign = "center";
+
+        ctx.fillText(
+            tooltipText,
+            tooltipX + tooltipWidth / 2,
+            tooltipY + 15
+        );
+    }
 
 
     // 소환 버튼
