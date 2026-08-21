@@ -44,6 +44,20 @@ let waveBossDefeated = false;
 let waveClearTimer = null;
 let spawnTimer = null;
 
+// 일시정지(메뉴) / 게임 속도
+let gamePaused = false;
+let gameSpeed = 1; // 0, 1, 2
+
+// spawnTimer / waveClearTimer 를 일시정지했다가
+// 정확히 남은 시간만큼 이어서 재개하기 위한 정보
+let spawnTimerCallback = null;
+let spawnTimerExpiresAt = null;
+let spawnTimerRemaining = null;
+
+let waveClearCallback = null;
+let waveClearExpiresAt = null;
+let waveClearRemaining = null;
+
 const TOTAL_WAVES = 5;
 const WAVE_ENEMIES = [15, 21, 27, 36, 45];
 
@@ -420,6 +434,195 @@ if (startButton) {
 }
 
 
+// =====================================================
+// 일시정지 가능한 타이머 (스폰 / 웨이브 전환)
+// =====================================================
+
+function scheduleSpawnTimer(callback, delay) {
+
+    const speed = gameSpeed || 1;
+
+    const actualDelay = delay / speed;
+
+    spawnTimerCallback = callback;
+    spawnTimerExpiresAt = Date.now() + actualDelay;
+
+    spawnTimer = setTimeout(
+        callback,
+        actualDelay
+    );
+}
+
+
+function scheduleWaveClearTimer(callback, delay) {
+
+    const speed = gameSpeed || 1;
+
+    const actualDelay = delay / speed;
+
+    waveClearCallback = callback;
+    waveClearExpiresAt = Date.now() + actualDelay;
+
+    waveClearTimer = setTimeout(
+        callback,
+        actualDelay
+    );
+}
+
+
+function pauseTimers() {
+
+    if (spawnTimer) {
+
+        clearTimeout(spawnTimer);
+
+        spawnTimerRemaining =
+            Math.max(
+                0,
+                spawnTimerExpiresAt - Date.now()
+            );
+
+        spawnTimer = null;
+    }
+
+    if (waveClearTimer) {
+
+        clearTimeout(waveClearTimer);
+
+        waveClearRemaining =
+            Math.max(
+                0,
+                waveClearExpiresAt - Date.now()
+            );
+
+        waveClearTimer = null;
+    }
+}
+
+
+function resumeTimers() {
+
+    if (
+        spawnTimerRemaining !== null &&
+        spawnTimerCallback
+    ) {
+
+        scheduleSpawnTimer(
+            spawnTimerCallback,
+            spawnTimerRemaining
+        );
+
+        spawnTimerRemaining = null;
+    }
+
+    if (
+        waveClearRemaining !== null &&
+        waveClearCallback
+    ) {
+
+        scheduleWaveClearTimer(
+            waveClearCallback,
+            waveClearRemaining
+        );
+
+        waveClearRemaining = null;
+    }
+}
+
+
+function clearAllTimers() {
+
+    if (spawnTimer) {
+        clearTimeout(spawnTimer);
+        spawnTimer = null;
+    }
+
+    if (waveClearTimer) {
+        clearTimeout(waveClearTimer);
+        waveClearTimer = null;
+    }
+
+    spawnTimerCallback = null;
+    spawnTimerExpiresAt = null;
+    spawnTimerRemaining = null;
+
+    waveClearCallback = null;
+    waveClearExpiresAt = null;
+    waveClearRemaining = null;
+}
+
+
+// 게임을 멈춰야 하는 상태인지 (모달 일시정지 또는 0배속)
+function isGameFrozen() {
+
+    return gamePaused || gameSpeed === 0;
+}
+
+
+// 일시정지 상태 또는 속도가 바뀔 때마다 호출해서
+// 타이머를 실제로 멈추거나 다시 이어서 재개합니다.
+function syncFreezeState() {
+
+    if (isGameFrozen()) {
+
+        pauseTimers();
+
+    } else {
+
+        resumeTimers();
+    }
+}
+
+
+function setGameSpeed(speed) {
+
+    gameSpeed = speed;
+
+    syncFreezeState();
+
+    updateUI();
+    draw();
+}
+
+
+function togglePause() {
+
+    if (gameState !== "playing") return;
+
+    gamePaused = !gamePaused;
+
+    syncFreezeState();
+
+    draw();
+}
+
+
+function restartGame() {
+
+    gamePaused = false;
+
+    startGame();
+}
+
+
+function returnToMainMenu() {
+
+    gamePaused = false;
+    gameRunning = false;
+    gameState = "menu";
+
+    clearAllTimers();
+
+    selectedTower = null;
+    draggingTower = null;
+
+    startButton.disabled = false;
+    startButton.textContent = "GAME START";
+
+    draw();
+}
+
+
 function startGame() {
 
     gameRunning = true;
@@ -432,15 +635,10 @@ function startGame() {
     waveActive = false;
     waveBossDefeated = false;
 
-    if (spawnTimer) {
-        clearTimeout(spawnTimer);
-        spawnTimer = null;
-    }
+    gamePaused = false;
+    gameSpeed = 1;
 
-    if (waveClearTimer) {
-        clearTimeout(waveClearTimer);
-        waveClearTimer = null;
-    }
+    clearAllTimers();
 
     baseHP = 100;
     gold = 100;
@@ -536,6 +734,91 @@ function sellInventoryTower(index) {
 
     updateUI();
     draw();
+}
+
+
+// =====================================================
+// 속도 조절 / 일시정지 버튼 위치
+// =====================================================
+
+const CONTROL_BAR_X = 15;
+const CONTROL_BAR_Y = 68;
+const CONTROL_BAR_WIDTH = 228;
+const CONTROL_BAR_HEIGHT = 36;
+
+const SPEED_VALUES = [0, 1, 2];
+
+
+function getSpeedButtonRect(speedValue) {
+
+    const index =
+        SPEED_VALUES.indexOf(speedValue);
+
+    const btnWidth = 42;
+    const btnHeight = 26;
+    const gap = 4;
+
+    return {
+        x:
+            CONTROL_BAR_X +
+            8 +
+            index * (btnWidth + gap),
+
+        y: CONTROL_BAR_Y + 5,
+
+        width: btnWidth,
+        height: btnHeight
+    };
+}
+
+
+function getPauseButtonRect() {
+
+    const lastSpeedRect =
+        getSpeedButtonRect(2);
+
+    return {
+        x:
+            lastSpeedRect.x +
+            lastSpeedRect.width +
+            10,
+
+        y: CONTROL_BAR_Y + 5,
+
+        width: 68,
+        height: 26
+    };
+}
+
+
+function getPauseModalButtonRects() {
+
+    const centerX = canvas.width / 2;
+
+    const width = 220;
+    const height = 46;
+    const gap = 14;
+
+    return {
+        resume: {
+            x: centerX - width / 2,
+            y: 260,
+            width,
+            height
+        },
+        restart: {
+            x: centerX - width / 2,
+            y: 260 + (height + gap),
+            width,
+            height
+        },
+        menu: {
+            x: centerX - width / 2,
+            y: 260 + (height + gap) * 2,
+            width,
+            height
+        }
+    };
 }
 
 
@@ -792,6 +1075,10 @@ canvas.addEventListener("mousedown", (event) => {
         return;
     }
 
+    if (gamePaused) {
+        return;
+    }
+
     const { x, y } =
         getCanvasPosition(event);
 
@@ -986,6 +1273,86 @@ canvas.addEventListener("click", (event) => {
 
 
     if (!gameRunning) return;
+
+
+    // =================================================
+    // 일시정지 오버레이 (열려있으면 이 버튼들만 반응)
+    // =================================================
+
+    if (gamePaused) {
+
+        const buttons =
+            getPauseModalButtonRects();
+
+        if (
+            x >= buttons.resume.x &&
+            x <= buttons.resume.x + buttons.resume.width &&
+            y >= buttons.resume.y &&
+            y <= buttons.resume.y + buttons.resume.height
+        ) {
+            togglePause();
+            return;
+        }
+
+        if (
+            x >= buttons.restart.x &&
+            x <= buttons.restart.x + buttons.restart.width &&
+            y >= buttons.restart.y &&
+            y <= buttons.restart.y + buttons.restart.height
+        ) {
+            restartGame();
+            return;
+        }
+
+        if (
+            x >= buttons.menu.x &&
+            x <= buttons.menu.x + buttons.menu.width &&
+            y >= buttons.menu.y &&
+            y <= buttons.menu.y + buttons.menu.height
+        ) {
+            returnToMainMenu();
+            return;
+        }
+
+        // 오버레이가 열려 있는 동안은
+        // 다른 어떤 입력도 받지 않습니다.
+        return;
+    }
+
+
+    // =================================================
+    // 속도 조절 / 일시정지 버튼
+    // =================================================
+
+    for (const speedValue of SPEED_VALUES) {
+
+        const rect =
+            getSpeedButtonRect(speedValue);
+
+        if (
+            x >= rect.x &&
+            x <= rect.x + rect.width &&
+            y >= rect.y &&
+            y <= rect.y + rect.height
+        ) {
+            setGameSpeed(speedValue);
+            return;
+        }
+    }
+
+    const pauseRect =
+        getPauseButtonRect();
+
+    if (
+        x >= pauseRect.x &&
+        x <= pauseRect.x + pauseRect.width &&
+        y >= pauseRect.y &&
+        y <= pauseRect.y + pauseRect.height
+    ) {
+        togglePause();
+        return;
+    }
+
 
     // =================================================
     // 1. 업그레이드 패널 닫기 / 버튼 확인
@@ -1296,18 +1663,17 @@ function spawnEnemy() {
         WAVE_ENEMIES[wave - 1]
     ) {
 
-        spawnTimer =
-            setTimeout(
-                spawnEnemy,
-                spawnDelay
-            );
+        scheduleSpawnTimer(
+            spawnEnemy,
+            spawnDelay
+        );
 
     } else {
 
         spawnTimer = null;
 
         if (wave === TOTAL_WAVES) {
-            spawnTimer = setTimeout(
+            scheduleSpawnTimer(
                 spawnBoss,
                 1400
             );
@@ -1395,8 +1761,8 @@ function checkWaveClear() {
         }
 
 
-        waveClearTimer =
-            setTimeout(() => {
+        scheduleWaveClearTimer(
+            () => {
 
                 if (!gameRunning) {
                     return;
@@ -1404,8 +1770,9 @@ function checkWaveClear() {
 
                 wave++;
                 startWave();
-
-            }, 1800);
+            },
+            1800
+        );
     }
 }
 
@@ -1850,6 +2217,7 @@ function draw() {
 
     if (gameState === "playing") {
         drawWaveStatus();
+        drawControlBar();
         drawTowerInventory();
     }
 
@@ -1867,6 +2235,10 @@ function draw() {
 
     if (gameState === "ended") {
         drawGameEndPopup();
+    }
+
+    if (gameState === "playing" && gamePaused) {
+        drawPauseOverlay();
     }
 }
 
@@ -2955,6 +3327,201 @@ function drawTowerInventory() {
 // WAVE STATUS
 // =====================================================
 
+// =====================================================
+// 속도 조절 / 일시정지 버튼
+// =====================================================
+
+function drawControlBar() {
+
+    ctx.fillStyle =
+        "rgba(15,20,28,0.72)";
+
+    ctx.fillRect(
+        CONTROL_BAR_X,
+        CONTROL_BAR_Y,
+        CONTROL_BAR_WIDTH,
+        CONTROL_BAR_HEIGHT
+    );
+
+
+    // 속도 버튼 (0x / 1x / 2x)
+    SPEED_VALUES.forEach((speedValue) => {
+
+        const rect =
+            getSpeedButtonRect(speedValue);
+
+        const isActive =
+            gameSpeed === speedValue;
+
+        ctx.fillStyle =
+            isActive
+                ? "#3f7cff"
+                : "rgba(255,255,255,0.08)";
+
+        ctx.fillRect(
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height
+        );
+
+        ctx.strokeStyle =
+            "rgba(255,255,255,0.25)";
+
+        ctx.lineWidth = 1;
+
+        ctx.strokeRect(
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height
+        );
+
+        ctx.fillStyle =
+            isActive ? "#ffffff" : "#aab2bf";
+
+        ctx.font = "bold 12px Arial";
+        ctx.textAlign = "center";
+
+        ctx.fillText(
+            speedValue + "x",
+            rect.x + rect.width / 2,
+            rect.y + rect.height / 2 + 4
+        );
+    });
+
+
+    // 일시정지 버튼
+    const pauseRect =
+        getPauseButtonRect();
+
+    ctx.fillStyle =
+        "rgba(255,255,255,0.08)";
+
+    ctx.fillRect(
+        pauseRect.x,
+        pauseRect.y,
+        pauseRect.width,
+        pauseRect.height
+    );
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,0.25)";
+
+    ctx.strokeRect(
+        pauseRect.x,
+        pauseRect.y,
+        pauseRect.width,
+        pauseRect.height
+    );
+
+    // 일시정지 아이콘 (막대 2개)
+    ctx.fillStyle = "#ffffff";
+
+    const barWidth = 4;
+    const barHeight = 12;
+    const barGap = 4;
+
+    const iconCenterX =
+        pauseRect.x + 16;
+
+    const iconY =
+        pauseRect.y +
+        pauseRect.height / 2 -
+        barHeight / 2;
+
+    ctx.fillRect(
+        iconCenterX - barGap / 2 - barWidth,
+        iconY,
+        barWidth,
+        barHeight
+    );
+
+    ctx.fillRect(
+        iconCenterX + barGap / 2,
+        iconY,
+        barWidth,
+        barHeight
+    );
+
+    ctx.font = "bold 12px Arial";
+    ctx.textAlign = "left";
+
+    ctx.fillText(
+        "PAUSE",
+        pauseRect.x + 28,
+        pauseRect.y + pauseRect.height / 2 + 4
+    );
+}
+
+
+// =====================================================
+// 일시정지 오버레이
+// =====================================================
+
+function drawPauseOverlay() {
+
+    ctx.fillStyle =
+        "rgba(10,13,19,0.85)";
+
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    const centerX = canvas.width / 2;
+
+    ctx.textAlign = "center";
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 38px Arial";
+
+    ctx.fillText(
+        "PAUSED",
+        centerX,
+        190
+    );
+
+    ctx.fillStyle = "#9fc9ff";
+    ctx.font = "15px Arial";
+
+    ctx.fillText(
+        "게임이 일시정지되었습니다.",
+        centerX,
+        222
+    );
+
+    const buttons =
+        getPauseModalButtonRects();
+
+    drawMenuButton(
+        buttons.resume.x,
+        buttons.resume.y,
+        buttons.resume.width,
+        buttons.resume.height,
+        "게임 재개"
+    );
+
+    drawMenuButton(
+        buttons.restart.x,
+        buttons.restart.y,
+        buttons.restart.width,
+        buttons.restart.height,
+        "재시작"
+    );
+
+    drawMenuButton(
+        buttons.menu.x,
+        buttons.menu.y,
+        buttons.menu.width,
+        buttons.menu.height,
+        "메뉴 화면"
+    );
+}
+
+
 function drawWaveStatus() {
 
     if (gameState !== "playing") {
@@ -3753,15 +4320,8 @@ function gameClear() {
     gameRunning = false;
     waveActive = false;
 
-    if (spawnTimer) {
-        clearTimeout(spawnTimer);
-        spawnTimer = null;
-    }
+    clearAllTimers();
 
-    if (waveClearTimer) {
-        clearTimeout(waveClearTimer);
-        waveClearTimer = null;
-    }
     gameState = "ended";
     gameResult = "clear";
     selectedTower = null;
@@ -3775,15 +4335,8 @@ function gameOver() {
     gameRunning = false;
     waveActive = false;
 
-    if (spawnTimer) {
-        clearTimeout(spawnTimer);
-        spawnTimer = null;
-    }
+    clearAllTimers();
 
-    if (waveClearTimer) {
-        clearTimeout(waveClearTimer);
-        waveClearTimer = null;
-    }
     gameState = "ended";
     gameResult = "gameover";
     selectedTower = null;
@@ -4116,8 +4669,20 @@ function updateGame() {
 
 function gameLoop() {
 
-    if (gameRunning) {
-        updateGame();
+    if (
+        gameRunning &&
+        !gamePaused &&
+        gameSpeed > 0
+    ) {
+
+        for (
+            let i = 0;
+            i < gameSpeed;
+            i++
+        ) {
+
+            updateGame();
+        }
     }
 
     draw();
