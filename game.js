@@ -3144,7 +3144,7 @@ function drawUpgradePanel() {
 
     ctx.fillText(
         "Damage: " +
-        selectedTower.damage,
+        Math.round(selectedTower.damage),
         panelX + 15,
         panelY + 73
     );
@@ -3152,7 +3152,7 @@ function drawUpgradePanel() {
 
     ctx.fillText(
         "Range: " +
-        selectedTower.range,
+        Math.round(selectedTower.range),
         panelX + 125,
         panelY + 73
     );
@@ -3160,7 +3160,7 @@ function drawUpgradePanel() {
 
     ctx.fillText(
         "Attack Speed: " +
-        selectedTower.fireRate,
+        Math.round(selectedTower.fireRate),
         panelX + 15,
         panelY + 95
     );
