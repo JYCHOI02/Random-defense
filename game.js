@@ -354,6 +354,7 @@ function summonTower() {
 
 // =====================================================
 // MONSTER PATH
+
 // =====================================================
 
 const pathTiles = [
@@ -1763,7 +1764,7 @@ function checkWaveClear() {
         scheduleWaveClearTimer(
             () => {
 
-                if (!gameRunning || isGameFrozen()) {
+                if (!gameRunning) {
                     return;
                 }
 
@@ -2103,7 +2104,7 @@ function updateBullets() {
             }
 
             updateUI();
-        } else {
+} else {
 
             bullet.x +=
                 (dx / distance)
@@ -2240,6 +2241,7 @@ function draw() {
         drawPauseOverlay();
     }
 }
+
 
 
 // =====================================================
