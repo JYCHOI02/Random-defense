@@ -201,6 +201,7 @@ let mouseRow = -1;
 let hoveredTower = null;
 let selectedTower = null;
 let showStats = false;
+let currentRarityCounts = {normal:0, rare:0, unique:0, legendary:0, super:0};
 
 
 // =====================================================
@@ -4622,7 +4623,7 @@ function drawStatisticsPopup() {
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
     const width = 500;
-    const height = 390;
+    const height = 560;
     const x = (canvas.width-width)/2;
     const y = (canvas.height-height)/2;
 
@@ -4637,6 +4638,32 @@ function drawStatisticsPopup() {
     ctx.font = "bold 25px Arial";
     ctx.fillText("GOLD SPENDING TOP 10",canvas.width/2,y+40);
 
+    ctx.textAlign="left";
+    ctx.fillStyle="#ffffff";
+    ctx.font="bold 15px Arial";
+    ctx.fillText("THIS GAME - TOWER RARITY",x+35,y+75);
+
+    const currentLabels=[
+        ["NORMAL",currentRarityCounts.normal],
+        ["RARE",currentRarityCounts.rare],
+        ["UNIQUE",currentRarityCounts.unique],
+        ["LEGENDARY",currentRarityCounts.legendary],
+        ["SUPER LEGEND",currentRarityCounts.super]
+    ];
+
+    currentLabels.forEach((item,i)=>{
+        const col=i%2, row=Math.floor(i/2);
+        const yy=y+103+row*24;
+        ctx.fillStyle="#dce3ec";
+        ctx.font="13px Arial";
+        ctx.fillText(`${item[0]}: ${item[1]}개`,x+35+col*215,yy);
+    });
+
+    ctx.textAlign="center";
+    ctx.fillStyle="#ffffff";
+    ctx.font="bold 15px Arial";
+    ctx.fillText("GOLD SPENDING TOP 10",canvas.width/2,y+190);
+
     const records = getGoldRecords();
 
     if(records.length===0){
@@ -4647,7 +4674,7 @@ function drawStatisticsPopup() {
         ctx.textAlign="left";
         ctx.font="bold 14px Arial";
         records.forEach((record,index)=>{
-            const yy=y+78+index*25;
+            const yy=y+215+index*25;
             ctx.fillStyle=index===0 ? "#ffd34d" : "#ffffff";
             ctx.fillText(`${index+1}.  ${record.gold} GOLD`,x+45,yy);
             ctx.fillStyle="#8e9aaa";
@@ -4657,7 +4684,7 @@ function drawStatisticsPopup() {
         });
     }
 
-    drawMenuButton(canvas.width/2-90,y+height-58,180,42,"BACK");
+    drawMenuButton(canvas.width/2-90,y+height-52,180,42,"BACK");
 }
 
 function drawHowToPlay() {
