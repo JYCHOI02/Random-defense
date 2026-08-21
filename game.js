@@ -1019,10 +1019,12 @@ canvas.addEventListener("click", (event) => {
             panelX + 15;
 
         const buttonY =
-            panelY + 145;
+            panelY + 148;
 
-        const buttonWidth = 210;
-        const buttonHeight = 40;
+        const buttonWidth =
+            panelWidth - 30;
+
+        const buttonHeight = 38;
 
 
         if (
@@ -3012,7 +3014,7 @@ function drawUpgradePanel() {
 
 
     const panelWidth = 270;
-    const panelHeight = 210;
+    const panelHeight = 200;
 
 
     const panelX =
@@ -3137,6 +3139,30 @@ function drawUpgradePanel() {
 
 
     // ---------------------------------------------
+    // 구분선
+    // ---------------------------------------------
+
+    ctx.strokeStyle =
+        "rgba(255,255,255,0.12)";
+
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+
+    ctx.moveTo(
+        panelX + 15,
+        panelY + 36
+    );
+
+    ctx.lineTo(
+        panelX + panelWidth - 15,
+        panelY + 36
+    );
+
+    ctx.stroke();
+
+
+    // ---------------------------------------------
     // 레벨
     // ---------------------------------------------
 
@@ -3144,68 +3170,67 @@ function drawUpgradePanel() {
         "#8ed8ff";
 
     ctx.font =
-        "bold 14px Arial";
+        "bold 13px Arial";
+
+    ctx.textAlign =
+        "left";
 
 
     ctx.fillText(
         "LEVEL " +
         selectedTower.level,
         panelX + 15,
-        panelY + 48
+        panelY + 55
     );
 
 
     // ---------------------------------------------
-    // 스탯
+    // 스탯 (라벨 좌측 / 값 우측 정렬)
     // ---------------------------------------------
 
-    ctx.fillStyle =
-        "#dddddd";
+    const statRows = [
+        {
+            label: "DAMAGE",
+            value: Math.round(selectedTower.damage)
+        },
+        {
+            label: "RANGE",
+            value: Math.round(selectedTower.range)
+        },
+        {
+            label: "ATTACK SPEED",
+            value: Math.round(selectedTower.fireRate)
+        }
+    ];
 
-    ctx.font =
-        "13px Arial";
+    let statY = panelY + 78;
 
+    statRows.forEach((row) => {
 
-    ctx.fillText(
-        "Damage: " +
-        Math.round(selectedTower.damage),
-        panelX + 15,
-        panelY + 73
-    );
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#8a94a3";
+        ctx.font = "11px Arial";
 
+        ctx.fillText(
+            row.label,
+            panelX + 18,
+            statY
+        );
 
-    ctx.fillText(
-        "Range: " +
-        Math.round(selectedTower.range),
-        panelX + 125,
-        panelY + 73
-    );
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 14px Arial";
 
+        ctx.fillText(
+            String(row.value),
+            panelX + panelWidth - 18,
+            statY
+        );
 
-    ctx.fillText(
-        "Attack Speed: " +
-        Math.round(selectedTower.fireRate),
-        panelX + 15,
-        panelY + 95
-    );
+        statY += 22;
+    });
 
-
-    // ---------------------------------------------
-    // 안내 문구
-    // ---------------------------------------------
-
-    ctx.fillStyle =
-        "#999999";
-
-    ctx.font =
-        "11px Arial";
-
-
-    ctx.fillText(
-        "Upgrade this tower",
-        panelX + 15,
-        panelY + 125
-    );
+    ctx.textAlign = "left";
 
 
     // ---------------------------------------------
@@ -3216,10 +3241,12 @@ function drawUpgradePanel() {
         panelX + 15;
 
     const buttonY =
-        panelY + 145;
+        panelY + 148;
 
-    const buttonWidth = 210;
-    const buttonHeight = 40;
+    const buttonWidth =
+        panelWidth - 30;
+
+    const buttonHeight = 38;
 
 
     let buttonColor;
