@@ -665,7 +665,7 @@ function startGame() {
 
     startWave();
 
-    requestAnimationFrame(gameLoop);
+    lastTickTime = Date.now();
 }
 
 
@@ -4666,8 +4666,28 @@ function updateGame() {
 // =====================================================
 // GAME LOOP
 // =====================================================
+//
+// requestAnimationFrame은 탭이 화면에서 벗어나면(백그라운드)
+// 브라우저가 아예 멈춰버립니다. 화면을 벗어나도 게임이 계속
+// 진행되도록, 실제 경과 시간(Date.now())을 기준으로 얼마나
+// 많은 업데이트를 처리해야 하는지 계산하는 방식으로 바꿨습니다.
+// 탭이 다시 활성화되면 그동안 흐른 시간만큼 즉시 따라잡습니다.
+
+const TICK_MS = 1000 / 60;
+
+// 한 번에 몰아서 따라잡는 최대 tick 수.
+// 아주 오랫동안 화면을 벗어나 있었더라도 브라우저가
+// 한 번에 얼어붙지 않도록, 남은 시간은 다음 루프에서
+// 이어서 계속 따라잡습니다.
+const MAX_TICKS_PER_LOOP = 120;
+
+let lastTickTime = Date.now();
+
 
 function gameLoop() {
+
+    const now = Date.now();
+    const realElapsed = now - lastTickTime;
 
     if (
         gameRunning &&
@@ -4675,20 +4695,48 @@ function gameLoop() {
         gameSpeed > 0
     ) {
 
+        const virtualElapsed =
+            realElapsed * gameSpeed;
+
+        let ticksToRun =
+            Math.floor(
+                virtualElapsed / TICK_MS
+            );
+
+        if (ticksToRun > MAX_TICKS_PER_LOOP) {
+            ticksToRun = MAX_TICKS_PER_LOOP;
+        }
+
         for (
             let i = 0;
-            i < gameSpeed;
+            i < ticksToRun;
             i++
         ) {
 
             updateGame();
         }
+
+        // 실제로 처리한 시간만큼만 진행시키고,
+        // 남은 오차는 다음 루프에서 이어서 처리합니다.
+        lastTickTime =
+            now -
+            (
+                virtualElapsed -
+                ticksToRun * TICK_MS
+            ) / gameSpeed;
+
+    } else {
+
+        // 정지 상태에서는 따라잡을 시간이
+        // 쌓이지 않도록 매번 초기화합니다.
+        lastTickTime = now;
     }
 
     draw();
-
-    requestAnimationFrame(gameLoop);
 }
+
+
+setInterval(gameLoop, TICK_MS);
 
 
 
