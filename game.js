@@ -378,6 +378,30 @@ function tileCenter(col, row) {
 
 
 // =====================================================
+// TILE CHECK HELPERS
+// =====================================================
+
+function isPathTile(col, row) {
+
+    return pathTiles.some(
+        (tile) =>
+            tile.col === col &&
+            tile.row === row
+    );
+}
+
+
+function hasTower(col, row) {
+
+    return towers.some(
+        (tower) =>
+            tower.col === col &&
+            tower.row === row
+    );
+}
+
+
+// =====================================================
 // START GAME
 // =====================================================
 
