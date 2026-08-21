@@ -91,7 +91,7 @@ let selectedTower = null;
 // TOWER SETTINGS
 // =====================================================
 
-const TOWER_COST = 30;          // 타워 소환 비용 (30으로 변경)
+const TOWER_COST = 40;          // 타워 소환 비용
 const MAX_INVENTORY = 8;
 
 // 타워 종류
@@ -188,20 +188,20 @@ let dragY = 0;
 // 판매 버튼에 마우스가 올라가 있는 인벤토리 인덱스
 let hoveredSellIndex = -1;
 
-// 카드가 배치된 하단 영역 (화면 안쪽으로 여백 조정)
+// 카드가 배치된 하단 영역
 const inventoryArea = {
     x: 15,
-    y: canvas.height - 70,
+    y: canvas.height - 78,
     width: canvas.width - 205,
-    height: 60
+    height: 63
 };
 
-// 소환 버튼 (화면 안쪽으로 여백 조정)
+// 소환 버튼
 const summonButton = {
     x: canvas.width - 175,
-    y: canvas.height - 70,
+    y: canvas.height - 78,
     width: 160,
-    height: 60
+    height: 63
 };
 
 const towerLevels = {
@@ -426,6 +426,8 @@ function hasTower(col, row) {
 // START GAME
 // =====================================================
 
+// 기존 HTML 시작 버튼은 사용하지 않고
+// Canvas 중앙 메뉴를 사용합니다.
 if (startButton) {
     startButton.style.display = "none";
 }
@@ -549,12 +551,15 @@ function clearAllTimers() {
 }
 
 
+// 게임을 멈춰야 하는 상태인지 (모달 일시정지 또는 0배속)
 function isGameFrozen() {
 
     return gamePaused || gameSpeed === 0;
 }
 
 
+// 일시정지 상태 또는 속도가 바뀔 때마다 호출해서
+// 타이머를 실제로 멈추거나 다시 이어서 재개합니다.
 function syncFreezeState() {
 
     if (isGameFrozen()) {
@@ -669,18 +674,18 @@ function startGame() {
 
 function getInventoryCardRect(index) {
 
-    const gap = 6;
-    const cardWidth = 64;
+    const gap = 7;
+    const cardWidth = 70;
 
     return {
         x:
-            inventoryArea.x + 8 +
+            inventoryArea.x +
             index * (cardWidth + gap),
 
-        y: inventoryArea.y + 4,
+        y: inventoryArea.y,
 
         width: cardWidth,
-        height: inventoryArea.height - 8
+        height: inventoryArea.height
     };
 }
 
@@ -690,16 +695,16 @@ function getSellButtonRect(index) {
     const cardRect =
         getInventoryCardRect(index);
 
-    const size = 14;
+    const size = 16;
 
     return {
         x:
             cardRect.x +
             cardRect.width -
             size -
-            2,
+            3,
 
-        y: cardRect.y + 2,
+        y: cardRect.y + 3,
 
         width: size,
         height: size
@@ -1173,6 +1178,10 @@ canvas.addEventListener("click", (event) => {
         * (canvas.height / rect.height);
 
 
+    // =================================================
+    // 초기 화면
+    // =================================================
+
     if (gameState === "menu") {
 
         const centerX = canvas.width / 2;
@@ -1202,6 +1211,10 @@ canvas.addEventListener("click", (event) => {
     }
 
 
+    // =================================================
+    // 게임 설명 화면
+    // =================================================
+
     if (gameState === "howto") {
 
         const centerX = canvas.width / 2;
@@ -1221,10 +1234,15 @@ canvas.addEventListener("click", (event) => {
     }
 
 
+    // =================================================
+    // 게임 종료 화면
+    // =================================================
+
     if (gameState === "ended") {
 
         const centerX = canvas.width / 2;
 
+        // 초기 화면으로
         if (
             x >= centerX - 145 &&
             x <= centerX - 10 &&
@@ -1238,6 +1256,7 @@ canvas.addEventListener("click", (event) => {
             return;
         }
 
+        // 바로 재시작
         if (
             x >= centerX + 10 &&
             x <= centerX + 145 &&
@@ -1254,6 +1273,10 @@ canvas.addEventListener("click", (event) => {
 
     if (!gameRunning) return;
 
+
+    // =================================================
+    // 일시정지 오버레이 (열려있으면 이 버튼들만 반응)
+    // =================================================
 
     if (gamePaused) {
 
@@ -1290,9 +1313,15 @@ canvas.addEventListener("click", (event) => {
             return;
         }
 
+        // 오버레이가 열려 있는 동안은
+        // 다른 어떤 입력도 받지 않습니다.
         return;
     }
 
+
+    // =================================================
+    // 속도 조절 / 일시정지 버튼
+    // =================================================
 
     for (const speedValue of SPEED_VALUES) {
 
@@ -1323,6 +1352,10 @@ canvas.addEventListener("click", (event) => {
         return;
     }
 
+
+    // =================================================
+    // 1. 업그레이드 패널 닫기 / 버튼 확인
+    // =================================================
 
     if (selectedTower) {
 
@@ -1368,10 +1401,19 @@ canvas.addEventListener("click", (event) => {
         ) {
 
             upgradeTower(selectedTower);
+
+            // 중요:
+            // 여기서 반드시 종료
+            // 타워 설치 코드로 내려가지 않음
+
             return;
         }
     }
 
+
+    // =================================================
+    // 2. 기존 타워 클릭
+    // =================================================
 
     for (const tower of towers) {
 
@@ -1391,6 +1433,10 @@ canvas.addEventListener("click", (event) => {
     }
 
 
+    // =================================================
+    // 3. 맵 좌표 계산
+    // =================================================
+
     const col =
         Math.floor(x / TILE_SIZE);
 
@@ -1408,6 +1454,10 @@ canvas.addEventListener("click", (event) => {
         return;
     }
 
+
+    // =================================================
+    // 빈 공간 클릭
+    // =================================================
 
     selectedTower = null;
 
@@ -1476,6 +1526,8 @@ function upgradeTower(tower) {
                     ) * 0.12
         );
 
+    // 업그레이드해도 공격속도(fireRate)는 변하지 않도록
+    // 항상 1레벨 기준값을 사용합니다.
     tower.fireRate =
         towerLevels[1].fireRate *
         type.fireRate /
@@ -1511,6 +1563,7 @@ function getEnemyStats() {
 
     const roll = Math.random();
 
+    // 뭉쳐서 나오는 타입
     if (roll < 0.25) {
 
         return {
@@ -1521,6 +1574,7 @@ function getEnemyStats() {
         };
     }
 
+    // 후반으로 갈수록 빠른 몬스터 증가
     const fastChance =
         wave === 1 ? 0.05 :
         wave === 2 ? 0.15 :
@@ -1589,6 +1643,8 @@ function spawnEnemy() {
     waveEnemiesSpawned++;
 
 
+    // 후반 웨이브는 적 사이의 간격을 조금 줄여
+    // 뭉쳐서 등장하는 구간이 생기도록 합니다.
     const spawnDelay =
         wave === 1
             ? 1000
@@ -1670,6 +1726,9 @@ function startWave() {
 
     updateUI();
 
+
+    // 한 번에 2~3마리가 나오는 웨이브 구간을 추가합니다.
+    // 실제 몬스터 간격도 짧게 설정되어 자연스럽게 뭉칩니다.
     spawnEnemy();
 }
 
@@ -1704,7 +1763,7 @@ function checkWaveClear() {
         scheduleWaveClearTimer(
             () => {
 
-                if (!gameRunning) {
+                if (!gameRunning || isGameFrozen()) {
                     return;
                 }
 
@@ -1739,10 +1798,12 @@ function updateEnemies() {
             ];
 
 
+        // 기지 도착
         if (!targetTile) {
 
             if (enemy.type === "boss") {
 
+                // 보스가 기지에 도달하면 즉시 패배
                 baseHP = 0;
 
             } else {
@@ -1852,6 +1913,9 @@ function updateTowers() {
                 return;
             }
 
+            // pathIndex는 현재 목표 지점의 인덱스입니다.
+            // 현재 목표 지점까지 남은 거리를 이용해
+            // "길을 얼마나 많이 진행했는가"를 계산합니다.
             const nextIndex =
                 Math.min(
                     enemy.pathIndex,
@@ -1877,6 +1941,8 @@ function updateTowers() {
                     TILE_SIZE
                 );
 
+            // 진행도가 가장 높은 몬스터,
+            // 즉 기지에 가장 가까운 몬스터를 우선 공격합니다.
             if (
                 progress > bestProgress
             ) {
@@ -2219,6 +2285,10 @@ function drawPath() {
         );
 
 
+    // ---------------------------------------------
+    // 길 외곽
+    // ---------------------------------------------
+
     ctx.strokeStyle =
         "#8d7a52";
 
@@ -2264,6 +2334,10 @@ function drawPath() {
     ctx.stroke();
 
 
+    // ---------------------------------------------
+    // 실제 길
+    // ---------------------------------------------
+
     ctx.strokeStyle =
         "#b6a477";
 
@@ -2308,6 +2382,10 @@ function drawPath() {
 
     ctx.stroke();
 
+
+    // ---------------------------------------------
+    // 길 중앙 장식
+    // ---------------------------------------------
 
     ctx.strokeStyle =
         "rgba(255,255,255,0.15)";
@@ -2378,6 +2456,9 @@ function drawTowerPreview() {
     }
 
 
+    // 기존 타워 위에서는
+    // 설치 미리보기 표시하지 않음
+
     if (hoveredTower) {
 
         return;
@@ -2402,6 +2483,10 @@ function drawTowerPreview() {
         ) &&
         gold >= TOWER_COST;
 
+
+    // ---------------------------------------------
+    // 마우스가 올라간 칸
+    // ---------------------------------------------
 
     ctx.fillStyle =
         canBuild
@@ -2434,6 +2519,10 @@ function drawTowerPreview() {
     );
 
 
+    // ---------------------------------------------
+    // 설치 미리보기
+    // ---------------------------------------------
+
     if (canBuild) {
 
         const center =
@@ -2446,6 +2535,8 @@ function drawTowerPreview() {
         ctx.globalAlpha =
             0.45;
 
+
+        // 타워 바닥
 
         ctx.fillStyle =
             "#263238";
@@ -2464,6 +2555,8 @@ function drawTowerPreview() {
         ctx.fill();
 
 
+        // 타워 본체
+
         ctx.fillStyle =
             "#4569d4";
 
@@ -2475,6 +2568,8 @@ function drawTowerPreview() {
             28
         );
 
+
+        // 포신
 
         ctx.fillStyle =
             "#a9c0ff";
@@ -2490,6 +2585,8 @@ function drawTowerPreview() {
 
         ctx.globalAlpha = 1;
 
+
+        // 예상 사거리
 
         ctx.beginPath();
 
@@ -2525,6 +2622,11 @@ function drawTowerPreview() {
 function drawTowers() {
 
     towers.forEach(tower => {
+
+
+        // ---------------------------------------------
+        // 사거리 표시
+        // ---------------------------------------------
 
         if (
             tower === hoveredTower ||
@@ -2564,6 +2666,10 @@ function drawTowers() {
         }
 
 
+        // ---------------------------------------------
+        // 그림자
+        // ---------------------------------------------
+
         ctx.fillStyle =
             "rgba(0,0,0,0.25)";
 
@@ -2583,6 +2689,10 @@ function drawTowers() {
         ctx.fill();
 
 
+        // ---------------------------------------------
+        // 타워 바닥
+        // ---------------------------------------------
+
         ctx.fillStyle =
             "#263238";
 
@@ -2600,6 +2710,10 @@ function drawTowers() {
         ctx.fill();
 
 
+        // ---------------------------------------------
+        // 레벨별 색상
+        // ---------------------------------------------
+
         if (tower.level === 1) {
 
             ctx.fillStyle =
@@ -2616,6 +2730,10 @@ function drawTowers() {
                 "#d49a35";
         }
 
+
+        // ---------------------------------------------
+        // 타워 본체
+        // ---------------------------------------------
 
         if (tower.type === "cannon") {
 
@@ -2652,6 +2770,10 @@ function drawTowers() {
             28
         );
 
+
+        // ---------------------------------------------
+        // 포신 / 특수 장치
+        // ---------------------------------------------
 
         if (tower.type === "cannon") {
 
@@ -2693,6 +2815,10 @@ function drawTowers() {
         }
 
 
+        // ---------------------------------------------
+        // 중앙
+        // ---------------------------------------------
+
         ctx.fillStyle =
             "#e1e8ff";
 
@@ -2710,6 +2836,10 @@ function drawTowers() {
         ctx.fill();
 
 
+        // ---------------------------------------------
+        // 레벨 숫자
+        // ---------------------------------------------
+
         ctx.fillStyle =
             "#ffffff";
 
@@ -2726,6 +2856,10 @@ function drawTowers() {
             tower.y + 4
         );
 
+
+        // ---------------------------------------------
+        // 3단계 별
+        // ---------------------------------------------
 
         if (tower.level === 3) {
 
@@ -2756,6 +2890,7 @@ function drawTowerInventory() {
         return;
     }
 
+    // 인벤토리 배경
     ctx.fillStyle =
         "rgba(15,20,28,0.88)";
 
@@ -2811,6 +2946,7 @@ function drawTowerInventory() {
             );
 
 
+            // 등급
             ctx.fillStyle =
                 rarity.color;
 
@@ -2823,15 +2959,16 @@ function drawTowerInventory() {
             ctx.fillText(
                 rarity.shortName,
                 rect.x + rect.width / 2,
-                rect.y + 11
+                rect.y + 13
             );
 
 
+            // 타워 아이콘
             const cx =
                 rect.x + rect.width / 2;
 
             const cy =
-                rect.y + 28;
+                rect.y + 34;
 
             ctx.fillStyle =
                 tower.type === "cannon"
@@ -2841,13 +2978,14 @@ function drawTowerInventory() {
                         : "#5275df";
 
             ctx.fillRect(
-                cx - 8,
-                cy - 7,
-                16,
-                16
+                cx - 10,
+                cy - 8,
+                20,
+                20
             );
 
 
+            // 레벨
             ctx.fillStyle =
                 "#ffffff";
 
@@ -2857,10 +2995,11 @@ function drawTowerInventory() {
             ctx.fillText(
                 "Lv." + tower.level,
                 cx,
-                rect.y + 46
+                rect.y + 57
             );
 
 
+            // 판매 버튼 (X)
             const sellRect =
                 getSellButtonRect(index);
 
@@ -2893,23 +3032,23 @@ function drawTowerInventory() {
             ctx.beginPath();
 
             ctx.moveTo(
-                sellRect.x + 3,
-                sellRect.y + 3
+                sellRect.x + 4,
+                sellRect.y + 4
             );
 
             ctx.lineTo(
-                sellRect.x + sellRect.width - 3,
-                sellRect.y + sellRect.height - 3
+                sellRect.x + sellRect.width - 4,
+                sellRect.y + sellRect.height - 4
             );
 
             ctx.moveTo(
-                sellRect.x + sellRect.width - 3,
-                sellRect.y + 3
+                sellRect.x + sellRect.width - 4,
+                sellRect.y + 4
             );
 
             ctx.lineTo(
-                sellRect.x + 3,
-                sellRect.y + sellRect.height - 3
+                sellRect.x + 4,
+                sellRect.y + sellRect.height - 4
             );
 
             ctx.stroke();
@@ -2917,6 +3056,7 @@ function drawTowerInventory() {
     );
 
 
+    // 판매 가격 툴팁
     if (
         hoveredSellIndex >= 0 &&
         towerInventory[hoveredSellIndex]
@@ -2990,6 +3130,7 @@ function drawTowerInventory() {
     }
 
 
+    // 소환 버튼
     const canSummon =
         gold >= TOWER_COST &&
         towerInventory.length <
@@ -3027,7 +3168,7 @@ function drawTowerInventory() {
         "SUMMON TOWER",
         summonButton.x +
             summonButton.width / 2,
-        summonButton.y + 24
+        summonButton.y + 25
     );
 
     ctx.fillStyle = "#dbe6ff";
@@ -3041,10 +3182,11 @@ function drawTowerInventory() {
         MAX_INVENTORY,
         summonButton.x +
             summonButton.width / 2,
-        summonButton.y + 42
+        summonButton.y + 44
     );
 
 
+    // 드래그 중인 타워
     if (draggingTower) {
 
         const tower =
@@ -3073,6 +3215,7 @@ function drawTowerInventory() {
         }
 
 
+        // 설치 칸 표시
         if (position) {
 
             ctx.fillStyle =
@@ -3103,6 +3246,7 @@ function drawTowerInventory() {
         }
 
 
+        // 드래그 중인 카드
         ctx.save();
 
         ctx.globalAlpha = 0.88;
@@ -3178,6 +3322,10 @@ function drawTowerInventory() {
 
 
 // =====================================================
+// WAVE STATUS
+// =====================================================
+
+// =====================================================
 // 속도 조절 / 일시정지 버튼
 // =====================================================
 
@@ -3194,6 +3342,7 @@ function drawControlBar() {
     );
 
 
+    // 속도 버튼 (0x / 1x / 2x)
     SPEED_VALUES.forEach((speedValue) => {
 
         const rect =
@@ -3240,6 +3389,7 @@ function drawControlBar() {
     });
 
 
+    // 일시정지 버튼
     const pauseRect =
         getPauseButtonRect();
 
@@ -3263,6 +3413,7 @@ function drawControlBar() {
         pauseRect.height
     );
 
+    // 일시정지 아이콘 (막대 2개)
     ctx.fillStyle = "#ffffff";
 
     const barWidth = 4;
@@ -3440,6 +3591,10 @@ function drawUpgradePanel() {
     const panelY = 15;
 
 
+    // ---------------------------------------------
+    // 패널
+    // ---------------------------------------------
+
     ctx.fillStyle =
         "rgba(25,30,38,0.96)";
 
@@ -3466,6 +3621,10 @@ function drawUpgradePanel() {
     );
 
 
+    // ---------------------------------------------
+    // 제목
+    // ---------------------------------------------
+
     ctx.fillStyle =
         "#ffffff";
 
@@ -3487,6 +3646,8 @@ function drawUpgradePanel() {
         selectedType.name +
         " TOWER";
 
+    // 이름이 길어도 패널 밖으로 삐져나오지 않도록
+    // 폭에 맞춰 글자 크기를 자동으로 줄입니다.
     const maxTitleWidth =
         panelWidth - 15 - 40;
 
@@ -3519,6 +3680,10 @@ function drawUpgradePanel() {
     );
 
 
+    // ---------------------------------------------
+    // 닫기 버튼
+    // ---------------------------------------------
+
     ctx.fillStyle = "rgba(255,255,255,0.10)";
     ctx.fillRect(
         panelX + panelWidth - 35,
@@ -3537,6 +3702,10 @@ function drawUpgradePanel() {
         panelY + 28
     );
 
+
+    // ---------------------------------------------
+    // 구분선
+    // ---------------------------------------------
 
     ctx.strokeStyle =
         "rgba(255,255,255,0.12)";
@@ -3558,6 +3727,10 @@ function drawUpgradePanel() {
     ctx.stroke();
 
 
+    // ---------------------------------------------
+    // 레벨
+    // ---------------------------------------------
+
     ctx.fillStyle =
         "#8ed8ff";
 
@@ -3575,6 +3748,10 @@ function drawUpgradePanel() {
         panelY + 55
     );
 
+
+    // ---------------------------------------------
+    // 스탯 (라벨 좌측 / 값 우측 정렬)
+    // ---------------------------------------------
 
     const statRows = [
         {
@@ -3620,6 +3797,10 @@ function drawUpgradePanel() {
 
     ctx.textAlign = "left";
 
+
+    // ---------------------------------------------
+    // 업그레이드 버튼
+    // ---------------------------------------------
 
     const buttonX =
         panelX + 15;
@@ -3739,6 +3920,9 @@ function drawEnemies() {
 
     enemies.forEach(enemy => {
 
+
+        // 그림자
+
         ctx.fillStyle =
             "rgba(0,0,0,0.25)";
 
@@ -3757,6 +3941,8 @@ function drawEnemies() {
 
         ctx.fill();
 
+
+        // 몬스터
 
         ctx.fillStyle =
             enemy.type === "boss"
@@ -3780,6 +3966,8 @@ function drawEnemies() {
 
         ctx.fill();
 
+
+        // 눈
 
         ctx.fillStyle =
             "#ffffff";
@@ -3806,6 +3994,8 @@ function drawEnemies() {
         ctx.fill();
 
 
+        // HP 배경
+
         ctx.fillStyle =
             "#222222";
 
@@ -3817,6 +4007,8 @@ function drawEnemies() {
             5
         );
 
+
+        // HP
 
         ctx.fillStyle =
             "#55d66a";
@@ -3844,6 +4036,9 @@ function drawEnemies() {
 function drawBullets() {
 
     bullets.forEach(bullet => {
+
+
+        // 총알 궤적
 
         ctx.strokeStyle =
             "rgba(255,220,80,0.4)";
@@ -3878,6 +4073,8 @@ function drawBullets() {
         ctx.stroke();
 
 
+        // 총알
+
         ctx.fillStyle =
             bullet.type === "cannon"
                 ? "#ff9f43"
@@ -3898,6 +4095,8 @@ function drawBullets() {
 
         ctx.fill();
 
+
+        // 총알 빛
 
         ctx.fillStyle =
             "rgba(255,235,120,0.3)";
@@ -3974,6 +4173,8 @@ function drawBase() {
         );
 
 
+    // 기지 그림자
+
     ctx.fillStyle =
         "rgba(0,0,0,0.2)";
 
@@ -3986,6 +4187,8 @@ function drawBase() {
     );
 
 
+    // 기지 본체
+
     ctx.fillStyle =
         "#d63c3c";
 
@@ -3997,6 +4200,8 @@ function drawBase() {
         48
     );
 
+
+    // 지붕
 
     ctx.fillStyle =
         "#8e2020";
@@ -4028,6 +4233,8 @@ function drawBase() {
     ctx.fill();
 
 
+    // BASE
+
     ctx.fillStyle =
         "#ffffff";
 
@@ -4045,6 +4252,8 @@ function drawBase() {
     );
 
 
+    // HP 배경
+
     ctx.fillStyle =
         "#222222";
 
@@ -4056,6 +4265,8 @@ function drawBase() {
         5
     );
 
+
+    // HP
 
     ctx.fillStyle =
         "#4caf50";
@@ -4283,6 +4494,7 @@ function drawGameEndPopup() {
         (canvas.height - height) / 2;
 
 
+    // 팝업
     ctx.fillStyle =
         "rgba(25,30,38,0.98)";
 
@@ -4452,8 +4664,19 @@ function updateGame() {
 // =====================================================
 // GAME LOOP
 // =====================================================
+//
+// requestAnimationFrame은 탭이 화면에서 벗어나면(백그라운드)
+// 브라우저가 아예 멈춰버립니다. 화면을 벗어나도 게임이 계속
+// 진행되도록, 실제 경과 시간(Date.now())을 기준으로 얼마나
+// 많은 업데이트를 처리해야 하는지 계산하는 방식으로 바꿨습니다.
+// 탭이 다시 활성화되면 그동안 흐른 시간만큼 즉시 따라잡습니다.
 
 const TICK_MS = 1000 / 60;
+
+// 한 번에 몰아서 따라잡는 최대 tick 수.
+// 아주 오랫동안 화면을 벗어나 있었더라도 브라우저가
+// 한 번에 얼어붙지 않도록, 남은 시간은 다음 루프에서
+// 이어서 계속 따라잡습니다.
 const MAX_TICKS_PER_LOOP = 120;
 
 let lastTickTime = Date.now();
@@ -4491,6 +4714,8 @@ function gameLoop() {
             updateGame();
         }
 
+        // 실제로 처리한 시간만큼만 진행시키고,
+        // 남은 오차는 다음 루프에서 이어서 처리합니다.
         lastTickTime =
             now -
             (
@@ -4500,6 +4725,8 @@ function gameLoop() {
 
     } else {
 
+        // 정지 상태에서는 따라잡을 시간이
+        // 쌓이지 않도록 매번 초기화합니다.
         lastTickTime = now;
     }
 
@@ -4510,6 +4737,7 @@ function gameLoop() {
 setInterval(gameLoop, TICK_MS);
 
 
+
 // =====================================================
 // INITIALIZE
 // =====================================================
@@ -4517,4 +4745,8 @@ setInterval(gameLoop, TICK_MS);
 updateUI();
 
 gameState = "menu";
+draw();
+
+// 초기 화면 표시
+
 draw();
