@@ -65,6 +65,121 @@ let baseHP = 100;
 let gold = 100;
 let wave = 1;
 
+// =====================================================
+// RUN STATISTICS / LEADERBOARD
+// =====================================================
+
+let totalGoldSpent = 0;
+
+let summonedByRarity = {
+    normal: 0,
+    rare: 0,
+    unique: 0,
+    legendary: 0,
+    superLegendary: 0
+};
+
+let currentRunSaved = false;
+
+const LEADERBOARD_STORAGE_KEY =
+    "towerDefenseGoldLeaderboard_v1";
+
+function getLeaderboard() {
+    try {
+        const raw =
+            localStorage.getItem(
+                LEADERBOARD_STORAGE_KEY
+            );
+
+        if (!raw) return [];
+
+        const parsed = JSON.parse(raw);
+
+        if (!Array.isArray(parsed)) {
+            return [];
+        }
+
+        return parsed
+            .filter(item =>
+                item &&
+                Number.isFinite(item.goldSpent)
+            )
+            .sort((a, b) =>
+                a.goldSpent - b.goldSpent
+            )
+            .slice(0, 10);
+
+    } catch (error) {
+        console.warn(
+            "리더보드 데이터를 불러오지 못했습니다.",
+            error
+        );
+        return [];
+    }
+}
+
+function saveLeaderboardRecord() {
+
+    if (currentRunSaved) {
+        return;
+    }
+
+    const record = {
+        id:
+            Date.now() +
+            Math.random(),
+
+        goldSpent:
+            totalGoldSpent,
+
+        normal:
+            summonedByRarity.normal,
+
+        rare:
+            summonedByRarity.rare,
+
+        unique:
+            summonedByRarity.unique,
+
+        legendary:
+            summonedByRarity.legendary,
+
+        superLegendary:
+            summonedByRarity.superLegendary,
+
+        result:
+            gameResult,
+
+        date:
+            new Date().toLocaleString("ko-KR")
+    };
+
+    const leaderboard =
+        getLeaderboard();
+
+    leaderboard.push(record);
+
+    leaderboard.sort(
+        (a, b) =>
+            a.goldSpent - b.goldSpent
+    );
+
+    try {
+        localStorage.setItem(
+            LEADERBOARD_STORAGE_KEY,
+            JSON.stringify(
+                leaderboard.slice(0, 10)
+            )
+        );
+        currentRunSaved = true;
+    } catch (error) {
+        console.warn(
+            "리더보드 저장에 실패했습니다.",
+            error
+        );
+    }
+}
+
 
 // =====================================================
 // OBJECTS
@@ -280,12 +395,16 @@ function summonTower() {
     }
 
     gold -= TOWER_COST;
+    totalGoldSpent += TOWER_COST;
 
     const typeKey =
         rollTowerType();
 
     const rarityKey =
         rollTowerRarity();
+
+    summonedByRarity[rarityKey] =
+        (summonedByRarity[rarityKey] || 0) + 1;
 
     const rarity =
         towerRarities[rarityKey];
@@ -649,6 +768,18 @@ function startGame() {
     enemiesDefeated = 0;
     wave = 1;
     waveEnemiesSpawned = 0;
+
+    totalGoldSpent = 0;
+
+    summonedByRarity = {
+        normal: 0,
+        rare: 0,
+        unique: 0,
+        legendary: 0,
+        superLegendary: 0
+    };
+
+    currentRunSaved = false;
     waveEnemiesDefeated = 0;
     waveActive = false;
     waveBossDefeated = false;
@@ -1261,12 +1392,20 @@ canvas.addEventListener("click", (event) => {
 
         const centerX = canvas.width / 2;
 
+        const popupHeight = 510;
+
+        const popupY =
+            (canvas.height - popupHeight) / 2;
+
+        const buttonY =
+            popupY + 355;
+
         // 초기 화면으로
         if (
             x >= centerX - 145 &&
             x <= centerX - 10 &&
-            y >= 330 &&
-            y <= 380
+            y >= buttonY &&
+            y <= buttonY + 50
         ) {
             gameResult = null;
             gameState = "menu";
@@ -1279,8 +1418,8 @@ canvas.addEventListener("click", (event) => {
         if (
             x >= centerX + 10 &&
             x <= centerX + 145 &&
-            y >= 330 &&
-            y <= 380
+            y >= buttonY &&
+            y <= buttonY + 50
         ) {
             startGame();
             return;
@@ -1509,6 +1648,7 @@ function upgradeTower(tower) {
     }
 
     gold -= upgradeCost;
+    totalGoldSpent += upgradeCost;
 
     tower.level =
         nextLevel;
@@ -4360,6 +4500,7 @@ function gameClear() {
 
     gameState = "ended";
     gameResult = "clear";
+    saveLeaderboardRecord();
     selectedTower = null;
 
     draw();
@@ -4375,6 +4516,7 @@ function gameOver() {
 
     gameState = "ended";
     gameResult = "gameover";
+    saveLeaderboardRecord();
     selectedTower = null;
 
     draw();
@@ -4385,57 +4527,82 @@ function gameOver() {
 // MAIN MENU
 // =====================================================
 
+function drawLeaderboardPanel(x, y, width, height) {
+
+    ctx.fillStyle = "rgba(255,255,255,0.045)";
+    ctx.fillRect(x, y, width, height);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.strokeRect(x, y, width, height);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 16px Arial";
+    ctx.fillText("GOLD 사용량 TOP 10", x + 14, y + 24);
+
+    ctx.fillStyle = "#7f8b9a";
+    ctx.font = "10px Arial";
+    ctx.fillText("적게 사용한 순", x + width - 92, y + 24);
+
+    const leaderboard = getLeaderboard();
+
+    for (let i = 0; i < 10; i++) {
+        const rowY = y + 45 + i * 16;
+        const record = leaderboard[i];
+
+        if (!record) {
+            ctx.fillStyle = "#586270";
+            ctx.font = "10px Arial";
+            ctx.fillText(`${i + 1}. ---`, x + 14, rowY);
+            continue;
+        }
+
+        ctx.fillStyle = i === 0 ? "#ffd34d" :
+                        i === 1 ? "#d8dce3" :
+                        i === 2 ? "#d09a68" : "#aeb8c6";
+        ctx.font = i < 3 ? "bold 10px Arial" : "10px Arial";
+        ctx.fillText(`${i + 1}.`, x + 14, rowY);
+
+        ctx.fillStyle = "#ffffff";
+        ctx.fillText(`${record.goldSpent} GOLD`, x + 38, rowY);
+
+        ctx.fillStyle = record.result === "clear" ? "#72e08a" : "#ff7777";
+        ctx.fillText(record.result === "clear" ? "CLEAR" : "OVER", x + 130, rowY);
+    }
+
+    ctx.textAlign = "center";
+}
+
+
 function drawMainMenu() {
 
     ctx.fillStyle = "rgba(15,20,28,0.82)";
-    ctx.fillRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
-
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     const centerX = canvas.width / 2;
 
-
     ctx.textAlign = "center";
-
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 42px Arial";
-
-    ctx.fillText(
-        "TOWER DEFENSE",
-        centerX,
-        190
-    );
-
+    ctx.font = "bold 34px Arial";
+    ctx.fillText("TOWER DEFENSE", centerX, 55);
 
     ctx.fillStyle = "#9fc9ff";
-    ctx.font = "16px Arial";
+    ctx.font = "13px Arial";
+    ctx.fillText("Defend your base from incoming monsters", centerX, 78);
 
+    // 시작 버튼 / 설명 버튼
+    drawMenuButton(centerX - 115, 92, 230, 42, "GAME START");
+    drawMenuButton(centerX - 115, 140, 230, 42, "HOW TO PLAY");
+
+    // 누적 TOP 10을 시작 화면에서도 항상 표시
+    drawLeaderboardPanel(125, 195, 650, 235);
+
+    ctx.fillStyle = "#7f8b9a";
+    ctx.font = "10px Arial";
     ctx.fillText(
-        "Defend your base from incoming monsters",
+        "기록은 같은 브라우저의 이 사이트에 다시 접속해도 유지됩니다.",
         centerX,
-        220
-    );
-
-
-    drawMenuButton(
-        centerX - 120,
-        255,
-        240,
-        50,
-        "GAME START"
-    );
-
-
-    drawMenuButton(
-        centerX - 120,
-        325,
-        240,
-        50,
-        "HOW TO PLAY"
+        452
     );
 }
 
@@ -4513,7 +4680,7 @@ function drawHowToPlay() {
 
 function drawGameEndPopup() {
 
-    ctx.fillStyle = "rgba(0,0,0,0.58)";
+    ctx.fillStyle = "rgba(0,0,0,0.62)";
     ctx.fillRect(
         0,
         0,
@@ -4521,9 +4688,8 @@ function drawGameEndPopup() {
         canvas.height
     );
 
-
-    const width = 460;
-    const height = 245;
+    const width = 720;
+    const height = 510;
 
     const x =
         (canvas.width - width) / 2;
@@ -4531,10 +4697,8 @@ function drawGameEndPopup() {
     const y =
         (canvas.height - height) / 2;
 
-
-    // 팝업
     ctx.fillStyle =
-        "rgba(25,30,38,0.98)";
+        "rgba(25,30,38,0.99)";
 
     ctx.fillRect(
         x,
@@ -4543,95 +4707,136 @@ function drawGameEndPopup() {
         height
     );
 
-
     ctx.strokeStyle =
         "rgba(255,255,255,0.25)";
 
     ctx.lineWidth = 2;
-
-    ctx.strokeRect(
-        x,
-        y,
-        width,
-        height
-    );
-
+    ctx.strokeRect(x, y, width, height);
 
     ctx.textAlign = "center";
 
+    // 결과 제목
+    ctx.fillStyle =
+        gameResult === "clear"
+            ? "#72e08a"
+            : "#ff6666";
 
-    if (gameResult === "clear") {
+    ctx.font = "bold 32px Arial";
 
-        ctx.fillStyle = "#72e08a";
-        ctx.font = "bold 36px Arial";
+    ctx.fillText(
+        gameResult === "clear"
+            ? "GAME CLEAR!"
+            : "GAME OVER",
+        canvas.width / 2,
+        y + 42
+    );
 
-        ctx.fillText(
-            "GAME CLEAR!",
-            canvas.width / 2,
-            y + 65
-        );
-
-
-        ctx.fillStyle = "#dddddd";
-        ctx.font = "16px Arial";
-
-        ctx.fillText(
-            "기지를 성공적으로 지켰습니다.",
-            canvas.width / 2,
-            y + 105
-        );
-
-    } else {
-
-        ctx.fillStyle = "#ff6666";
-        ctx.font = "bold 36px Arial";
-
-        ctx.fillText(
-            "GAME OVER",
-            canvas.width / 2,
-            y + 65
-        );
-
-
-        ctx.fillStyle = "#dddddd";
-        ctx.font = "16px Arial";
-
-        ctx.fillText(
-            "기지가 파괴되었습니다.",
-            canvas.width / 2,
-            y + 105
-        );
-    }
-
-
-    ctx.fillStyle = "#aaaaaa";
+    ctx.fillStyle = "#dddddd";
     ctx.font = "14px Arial";
 
     ctx.fillText(
-        "어디로 이동할지 선택하세요.",
+        gameResult === "clear"
+            ? "기지를 성공적으로 지켰습니다."
+            : "기지가 파괴되었습니다.",
         canvas.width / 2,
-        y + 140
+        y + 68
     );
 
+    // 이번 게임 기록
+    const statX = x + 20;
+    const statY = y + 88;
+    const statW = 300;
+    const statH = 220;
+
+    ctx.fillStyle = "rgba(255,255,255,0.045)";
+    ctx.fillRect(statX, statY, statW, statH);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.12)";
+    ctx.strokeRect(statX, statY, statW, statH);
+
+    ctx.textAlign = "left";
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 17px Arial";
+
+    ctx.fillText(
+        "이번 게임 기록",
+        statX + 18,
+        statY + 27
+    );
+
+    ctx.fillStyle = "#ffd34d";
+    ctx.font = "bold 22px Arial";
+
+    ctx.fillText(
+        `총 사용 골드: ${totalGoldSpent}`,
+        statX + 18,
+        statY + 60
+    );
+
+    const rarityStats = [
+        ["NORMAL", "normal", "#c9c9c9"],
+        ["RARE", "rare", "#4da3ff"],
+        ["UNIQUE", "unique", "#b56cff"],
+        ["LEGENDARY", "legendary", "#ffd34d"],
+        ["SUPER LEGEND", "superLegendary", "#ff4d7d"]
+    ];
+
+    rarityStats.forEach(
+        ([name, key, color], index) => {
+
+            const rowY =
+                statY + 92 + index * 23;
+
+            ctx.fillStyle = color;
+            ctx.font = "bold 12px Arial";
+
+            ctx.fillText(
+                name,
+                statX + 18,
+                rowY
+            );
+
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "13px Arial";
+
+            ctx.fillText(
+                `${summonedByRarity[key] || 0}개`,
+                statX + 170,
+                rowY
+            );
+        }
+    );
+
+    // 저장된 TOP 10
+    drawLeaderboardPanel(boardX, boardY, boardW, boardH);
+
+    ctx.textAlign = "center";
+
+    ctx.fillStyle = "#8f99a8";
+    ctx.font = "11px Arial";
+    ctx.fillText(
+        "TOP 10 기록은 같은 브라우저에 저장됩니다.",
+        canvas.width / 2,
+        y + 330
+    );
 
     drawMenuButton(
         canvas.width / 2 - 145,
-        y + 160,
+        y + 355,
         135,
         50,
         "MAIN MENU"
     );
 
-
     drawMenuButton(
         canvas.width / 2 + 10,
-        y + 160,
+        y + 355,
         135,
         50,
         "RESTART"
     );
 }
-
 
 // =====================================================
 // MENU BUTTON
