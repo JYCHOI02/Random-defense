@@ -993,7 +993,7 @@ canvas.addEventListener("click", (event) => {
 
     if (selectedTower) {
 
-        const panelWidth = 240;
+        const panelWidth = 270;
 
         const panelX =
             canvas.width - panelWidth - 15;
@@ -3011,7 +3011,7 @@ function drawUpgradePanel() {
     }
 
 
-    const panelWidth = 240;
+    const panelWidth = 270;
     const panelHeight = 210;
 
 
@@ -3061,9 +3061,6 @@ function drawUpgradePanel() {
     ctx.fillStyle =
         "#ffffff";
 
-    ctx.font =
-        "bold 17px Arial";
-
     ctx.textAlign =
         "left";
 
@@ -3076,14 +3073,41 @@ function drawUpgradePanel() {
             selectedTower.rarity || "normal"
         ];
 
+    const titleText =
+        selectedRarity.name +
+        " " +
+        selectedType.name +
+        " TOWER";
+
+    // 이름이 길어도 패널 밖으로 삐져나오지 않도록
+    // 폭에 맞춰 글자 크기를 자동으로 줄입니다.
+    const maxTitleWidth =
+        panelWidth - 15 - 40;
+
+    let titleFontSize = 17;
+
+    ctx.font =
+        "bold " + titleFontSize + "px Arial";
+
+    while (
+        ctx.measureText(titleText).width >
+            maxTitleWidth &&
+        titleFontSize > 10
+    ) {
+
+        titleFontSize -= 1;
+
+        ctx.font =
+            "bold " +
+            titleFontSize +
+            "px Arial";
+    }
+
     ctx.fillStyle =
         selectedRarity.color;
 
     ctx.fillText(
-        selectedRarity.name +
-        " " +
-        selectedType.name +
-        " TOWER",
+        titleText,
         panelX + 15,
         panelY + 25
     );
