@@ -440,33 +440,55 @@ if (startButton) {
 
 function scheduleSpawnTimer(callback, delay) {
 
-    const speed = gameSpeed || 1;
+    if (spawnTimer) {
+        clearTimeout(spawnTimer);
+        spawnTimer = null;
+    }
 
-    const actualDelay = delay / speed;
+    const speed = gameSpeed || 1;
+    const actualDelay = Math.max(0, delay / speed);
 
     spawnTimerCallback = callback;
     spawnTimerExpiresAt = Date.now() + actualDelay;
 
-    spawnTimer = setTimeout(
-        callback,
-        actualDelay
-    );
+    spawnTimer = setTimeout(() => {
+        spawnTimer = null;
+        spawnTimerExpiresAt = null;
+        spawnTimerRemaining = null;
+
+        if (!gameRunning || gameState !== "playing" || isGameFrozen()) {
+            return;
+        }
+
+        callback();
+    }, actualDelay);
 }
 
 
 function scheduleWaveClearTimer(callback, delay) {
 
-    const speed = gameSpeed || 1;
+    if (waveClearTimer) {
+        clearTimeout(waveClearTimer);
+        waveClearTimer = null;
+    }
 
-    const actualDelay = delay / speed;
+    const speed = gameSpeed || 1;
+    const actualDelay = Math.max(0, delay / speed);
 
     waveClearCallback = callback;
     waveClearExpiresAt = Date.now() + actualDelay;
 
-    waveClearTimer = setTimeout(
-        callback,
-        actualDelay
-    );
+    waveClearTimer = setTimeout(() => {
+        waveClearTimer = null;
+        waveClearExpiresAt = null;
+        waveClearRemaining = null;
+
+        if (!gameRunning || gameState !== "playing" || isGameFrozen()) {
+            return;
+        }
+
+        callback();
+    }, actualDelay);
 }
 
 
@@ -503,29 +525,25 @@ function pauseTimers() {
 function resumeTimers() {
 
     if (
+        spawnTimer === null &&
         spawnTimerRemaining !== null &&
         spawnTimerCallback
     ) {
-
-        scheduleSpawnTimer(
-            spawnTimerCallback,
-            spawnTimerRemaining
-        );
-
+        const callback = spawnTimerCallback;
+        const remaining = spawnTimerRemaining;
         spawnTimerRemaining = null;
+        scheduleSpawnTimer(callback, remaining);
     }
 
     if (
+        waveClearTimer === null &&
         waveClearRemaining !== null &&
         waveClearCallback
     ) {
-
-        scheduleWaveClearTimer(
-            waveClearCallback,
-            waveClearRemaining
-        );
-
+        const callback = waveClearCallback;
+        const remaining = waveClearRemaining;
         waveClearRemaining = null;
+        scheduleWaveClearTimer(callback, remaining);
     }
 }
 
@@ -1713,6 +1731,15 @@ function spawnBoss() {
 
 function startWave() {
 
+    // 새 웨이브가 시작되면 이전 웨이브 전환 예약을 무효화합니다.
+    if (waveClearTimer) {
+        clearTimeout(waveClearTimer);
+        waveClearTimer = null;
+    }
+    waveClearCallback = null;
+    waveClearExpiresAt = null;
+    waveClearRemaining = null;
+
     if (!gameRunning) {
         return;
     }
@@ -1761,10 +1788,19 @@ function checkWaveClear() {
         }
 
 
+        const clearedWave = wave;
+
         scheduleWaveClearTimer(
             () => {
-
-                if (!gameRunning) {
+                // 오래된 타이머가 재개되어도 웨이브를 건너뛰지 않습니다.
+                if (
+                    !gameRunning ||
+                    gameState !== "playing" ||
+                    gamePaused ||
+                    gameSpeed === 0 ||
+                    wave !== clearedWave ||
+                    waveActive
+                ) {
                     return;
                 }
 
