@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Mini Tower Defense</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<div class="game-container">
+
+    <header class="game-header">
+
+        <div>
+            <h1 class="game-title">TOWER DEFENSE</h1>
+            <div class="game-subtitle">
+                Build towers and protect your base
+            </div>
+        </div>
+
+        <div class="status">
+
+            <div class="status-box">
+                <span class="status-label">BASE HP</span>
+                <span class="status-value" id="hp">100</span>
+            </div>
+
+            <div class="status-box">
+                <span class="status-label">GOLD</span>
+                <span class="status-value" id="gold">100</span>
+            </div>
+
+            <div class="status-box">
+                <span class="status-label">WAVE</span>
+                <span class="status-value" id="wave">1</span>
+            </div>
+
+        </div>
+
+    </header>
+
+
+    <div class="game-board">
+
+        <canvas
+            id="gameCanvas"
+            width="900"
+            height="550">
+        </canvas>
+
+    </div>
+
+
+    <div class="controls">
+
+        <div class="controls-info">
+            <strong>HOW TO PLAY</strong>
+            &nbsp; 마우스 클릭으로 타워를 설치하세요.
+            &nbsp; | &nbsp;
+            타워 설치 비용 <strong>40 GOLD</strong>
+        </div>
+
+        <button id="startButton">
+            GAME START
+        </button>
+
+    </div>
+
+</div>
+
+
+<script src="game.js"></script>
+
+</body>
+
+</html>
