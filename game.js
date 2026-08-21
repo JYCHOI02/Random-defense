@@ -131,7 +131,7 @@ const towerRarities = {
         name: "UNIQUE",
         shortName: "U",
         chance: 13.0,
-        multiplier: 2.5,
+        multiplier: 1.8,
         color: "#b56cff",
         sellPrice: 60
     },
@@ -1158,8 +1158,10 @@ function upgradeTower(tower) {
                     ) * 0.12
         );
 
+    // 업그레이드해도 공격속도(fireRate)는 변하지 않도록
+    // 항상 1레벨 기준값을 사용합니다.
     tower.fireRate =
-        towerLevels[nextLevel].fireRate *
+        towerLevels[1].fireRate *
         type.fireRate /
         (
             tower.rarity === "superLegendary"
