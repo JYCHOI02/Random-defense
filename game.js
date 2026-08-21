@@ -200,6 +200,7 @@ let mouseRow = -1;
 
 let hoveredTower = null;
 let selectedTower = null;
+let showStats = false;
 
 
 // =====================================================
@@ -4577,39 +4578,87 @@ function drawLeaderboardPanel(x, y, width, height) {
 function drawMainMenu() {
 
     ctx.fillStyle = "rgba(15,20,28,0.82)";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 
     const centerX = canvas.width / 2;
 
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 34px Arial";
-    ctx.fillText("TOWER DEFENSE", centerX, 55);
+    ctx.font = "bold 42px Arial";
+    ctx.fillText("TOWER DEFENSE",centerX,150);
 
     ctx.fillStyle = "#9fc9ff";
-    ctx.font = "13px Arial";
-    ctx.fillText("Defend your base from incoming monsters", centerX, 78);
-
-    // 시작 버튼 / 설명 버튼
-    drawMenuButton(centerX - 115, 92, 230, 42, "GAME START");
-    drawMenuButton(centerX - 115, 140, 230, 42, "HOW TO PLAY");
-
-    // 누적 TOP 10을 시작 화면에서도 항상 표시
-    drawLeaderboardPanel(125, 195, 650, 235);
-
-    ctx.fillStyle = "#7f8b9a";
-    ctx.font = "10px Arial";
+    ctx.font = "16px Arial";
     ctx.fillText(
-        "기록은 같은 브라우저의 이 사이트에 다시 접속해도 유지됩니다.",
-        centerX,
-        452
+        "Defend your base from incoming monsters",
+        centerX,180
     );
+
+    drawMenuButton(centerX-120,215,240,50,"GAME START");
+    drawMenuButton(centerX-120,280,240,50,"HOW TO PLAY");
+    drawMenuButton(centerX-120,345,240,50,"STATISTICS");
+
+    if(showStats){
+        drawStatisticsPopup();
+    }
 }
 
 
-// =====================================================
-// HOW TO PLAY
-// =====================================================
+function getGoldRecords(){
+    try{
+        const raw=localStorage.getItem("towerDefenseGoldRecords");
+        const data=raw?JSON.parse(raw):[];
+        return Array.isArray(data)
+            ? data.sort((a,b)=>a.gold-b.gold).slice(0,10)
+            : [];
+    }catch(e){
+        return [];
+    }
+}
+
+function drawStatisticsPopup() {
+
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
+
+    const width = 500;
+    const height = 390;
+    const x = (canvas.width-width)/2;
+    const y = (canvas.height-height)/2;
+
+    ctx.fillStyle = "rgba(25,30,38,0.98)";
+    ctx.fillRect(x,y,width,height);
+
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.strokeRect(x,y,width,height);
+
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 25px Arial";
+    ctx.fillText("GOLD SPENDING TOP 10",canvas.width/2,y+40);
+
+    const records = getGoldRecords();
+
+    if(records.length===0){
+        ctx.fillStyle="#aaaaaa";
+        ctx.font="15px Arial";
+        ctx.fillText("아직 기록이 없습니다.",canvas.width/2,y+105);
+    }else{
+        ctx.textAlign="left";
+        ctx.font="bold 14px Arial";
+        records.forEach((record,index)=>{
+            const yy=y+78+index*25;
+            ctx.fillStyle=index===0 ? "#ffd34d" : "#ffffff";
+            ctx.fillText(`${index+1}.  ${record.gold} GOLD`,x+45,yy);
+            ctx.fillStyle="#8e9aaa";
+            ctx.font="12px Arial";
+            ctx.fillText(record.result==="clear" ? "CLEAR" : "GAME OVER",x+340,yy);
+            ctx.font="bold 14px Arial";
+        });
+    }
+
+    drawMenuButton(canvas.width/2-90,y+height-58,180,42,"BACK");
+}
 
 function drawHowToPlay() {
 
@@ -4680,167 +4729,60 @@ function drawHowToPlay() {
 
 function drawGameEndPopup() {
 
-    ctx.fillStyle = "rgba(0,0,0,0.62)";
-    ctx.fillRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
+    ctx.fillStyle = "rgba(0,0,0,0.58)";
+    ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    const width = 720;
-    const height = 510;
+    const width = 500;
+    const height = 330;
+    const x = (canvas.width-width)/2;
+    const y = (canvas.height-height)/2;
 
-    const x =
-        (canvas.width - width) / 2;
+    ctx.fillStyle = "rgba(25,30,38,0.98)";
+    ctx.fillRect(x,y,width,height);
 
-    const y =
-        (canvas.height - height) / 2;
+    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+    ctx.strokeRect(x,y,width,height);
 
-    ctx.fillStyle =
-        "rgba(25,30,38,0.99)";
+    ctx.textAlign="center";
 
-    ctx.fillRect(
-        x,
-        y,
-        width,
-        height
-    );
-
-    ctx.strokeStyle =
-        "rgba(255,255,255,0.25)";
-
-    ctx.lineWidth = 2;
-    ctx.strokeRect(x, y, width, height);
-
-    ctx.textAlign = "center";
-
-    // 결과 제목
-    ctx.fillStyle =
-        gameResult === "clear"
-            ? "#72e08a"
-            : "#ff6666";
-
-    ctx.font = "bold 32px Arial";
-
+    ctx.fillStyle=gameResult==="clear" ? "#72e08a" : "#ff6666";
+    ctx.font="bold 32px Arial";
     ctx.fillText(
-        gameResult === "clear"
-            ? "GAME CLEAR!"
-            : "GAME OVER",
-        canvas.width / 2,
-        y + 42
+        gameResult==="clear" ? "GAME CLEAR!" : "GAME OVER",
+        canvas.width/2,y+48
     );
 
-    ctx.fillStyle = "#dddddd";
-    ctx.font = "14px Arial";
-
+    ctx.fillStyle="#dddddd";
+    ctx.font="15px Arial";
     ctx.fillText(
-        gameResult === "clear"
-            ? "기지를 성공적으로 지켰습니다."
-            : "기지가 파괴되었습니다.",
-        canvas.width / 2,
-        y + 68
+        gameResult==="clear"
+        ? "기지를 성공적으로 지켰습니다."
+        : "기지가 파괴되었습니다.",
+        canvas.width/2,y+78
     );
 
-    // 이번 게임 기록
-    const statX = x + 20;
-    const statY = y + 88;
-    const statW = 300;
-    const statH = 220;
+    ctx.textAlign="left";
+    ctx.fillStyle="#ffffff";
+    ctx.font="bold 14px Arial";
+    ctx.fillText(`총 사용 골드: ${totalGoldSpent} GOLD`,x+45,y+115);
 
-    ctx.fillStyle = "rgba(255,255,255,0.045)";
-    ctx.fillRect(statX, statY, statW, statH);
-
-    ctx.strokeStyle = "rgba(255,255,255,0.12)";
-    ctx.strokeRect(statX, statY, statW, statH);
-
-    ctx.textAlign = "left";
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 17px Arial";
-
-    ctx.fillText(
-        "이번 게임 기록",
-        statX + 18,
-        statY + 27
-    );
-
-    ctx.fillStyle = "#ffd34d";
-    ctx.font = "bold 22px Arial";
-
-    ctx.fillText(
-        `총 사용 골드: ${totalGoldSpent}`,
-        statX + 18,
-        statY + 60
-    );
-
-    const rarityStats = [
-        ["NORMAL", "normal", "#c9c9c9"],
-        ["RARE", "rare", "#4da3ff"],
-        ["UNIQUE", "unique", "#b56cff"],
-        ["LEGENDARY", "legendary", "#ffd34d"],
-        ["SUPER LEGEND", "superLegendary", "#ff4d7d"]
+    const labels=[
+        ["NORMAL",normalCount],
+        ["RARE",rareCount],
+        ["UNIQUE",uniqueCount],
+        ["LEGENDARY",legendaryCount],
+        ["SUPER LEGEND",superLegendCount]
     ];
 
-    rarityStats.forEach(
-        ([name, key, color], index) => {
+    labels.forEach((item,i)=>{
+        ctx.fillText(`${item[0]}: ${item[1]}개`,x+45+(i%2)*205,y+145+Math.floor(i/2)*25);
+    });
 
-            const rowY =
-                statY + 92 + index * 23;
-
-            ctx.fillStyle = color;
-            ctx.font = "bold 12px Arial";
-
-            ctx.fillText(
-                name,
-                statX + 18,
-                rowY
-            );
-
-            ctx.fillStyle = "#ffffff";
-            ctx.font = "13px Arial";
-
-            ctx.fillText(
-                `${summonedByRarity[key] || 0}개`,
-                statX + 170,
-                rowY
-            );
-        }
-    );
-
-    // 저장된 TOP 10
-    drawLeaderboardPanel(boardX, boardY, boardW, boardH);
-
-    ctx.textAlign = "center";
-
-    ctx.fillStyle = "#8f99a8";
-    ctx.font = "11px Arial";
-    ctx.fillText(
-        "TOP 10 기록은 같은 브라우저에 저장됩니다.",
-        canvas.width / 2,
-        y + 330
-    );
-
-    drawMenuButton(
-        canvas.width / 2 - 145,
-        y + 355,
-        135,
-        50,
-        "MAIN MENU"
-    );
-
-    drawMenuButton(
-        canvas.width / 2 + 10,
-        y + 355,
-        135,
-        50,
-        "RESTART"
-    );
+    drawMenuButton(x+35,y+250,130,45,"MAIN MENU");
+    drawMenuButton(x+185,y+250,130,45,"RESTART");
+    drawMenuButton(x+335,y+250,130,45,"STATISTICS");
 }
 
-// =====================================================
-// MENU BUTTON
-// =====================================================
 
 function drawMenuButton(
     x,
