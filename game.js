@@ -1352,6 +1352,31 @@ function statsBackRect(){
 canvas.addEventListener("click",function(e){
     const p=getCanvasPoint(e);
 
+    // 게임 진행 중 컨트롤 버튼
+    if(gameState === "playing"){
+        if(gamePaused){
+            const buttons = getPauseModalButtonRects();
+            if(hit(p.x,p.y,buttons.resume)){ togglePause(); return; }
+            if(hit(p.x,p.y,buttons.restart)){ restartGame(); return; }
+            if(hit(p.x,p.y,buttons.menu)){ returnToMainMenu(); return; }
+            return;
+        }
+
+        for(const speedValue of SPEED_VALUES){
+            const rect = getSpeedButtonRect(speedValue);
+            if(hit(p.x,p.y,rect)){
+                setGameSpeed(speedValue);
+                return;
+            }
+        }
+
+        const pauseRect = getPauseButtonRect();
+        if(hit(p.x,p.y,pauseRect)){
+            togglePause();
+            return;
+        }
+    }
+
     if(gameState==="menu"){
         if(showStats){
             if(hit(p.x,p.y,statsBackRect())){
