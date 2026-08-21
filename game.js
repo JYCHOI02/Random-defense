@@ -1317,310 +1317,82 @@ canvas.addEventListener("mouseup", (event) => {
 // MOUSE CLICK
 // =====================================================
 
-canvas.addEventListener("click", (event) => {
+// 버튼을 그리는 좌표와 클릭 판정에 동일한 사각형을 사용합니다.
+function getCanvasPoint(e){
+    const rect=canvas.getBoundingClientRect();
+    return {
+        x:(e.clientX-rect.left)*(canvas.width/rect.width),
+        y:(e.clientY-rect.top)*(canvas.height/rect.height)
+    };
+}
+function hit(px,py,r){
+    return px>=r.x && px<=r.x+r.w && py>=r.y && py<=r.y+r.h;
+}
+function menuRects(){
+    const cx=canvas.width/2;
+    return {
+        start:{x:cx-120,y:215,w:240,h:50},
+        howto:{x:cx-120,y:280,w:240,h:50},
+        stats:{x:cx-120,y:345,w:240,h:50}
+    };
+}
+function endRects(){
+    const w=500,h=330,x=(canvas.width-w)/2,y=(canvas.height-h)/2;
+    return {
+        main:{x:x+35,y:y+250,w:130,h:45},
+        restart:{x:x+185,y:y+250,w:130,h:45},
+        stats:{x:x+335,y:y+250,w:130,h:45}
+    };
+}
+function statsBackRect(){
+    const w=500,h=560,x=(canvas.width-w)/2,y=(canvas.height-h)/2;
+    return {x:x+160,y:y+h-52,w:180,h:42};
+}
 
-    const rect = canvas.getBoundingClientRect();
+canvas.addEventListener("click",function(e){
+    const p=getCanvasPoint(e);
 
-    const x =
-        (event.clientX - rect.left)
-        * (canvas.width / rect.width);
+    if(gameState==="menu"){
+        if(showStats){
+            if(hit(p.x,p.y,statsBackRect())){
+                showStats=false;
+                draw();
+            }
+            return;
+        }
 
-    const y =
-        (event.clientY - rect.top)
-        * (canvas.height / rect.height);
+        const b=menuRects();
+        if(hit(p.x,p.y,b.start)){ startGame(); return; }
+        if(hit(p.x,p.y,b.howto)){ gameState="howto"; draw(); return; }
+        if(hit(p.x,p.y,b.stats)){ showStats=true; draw(); return; }
+        return;
+    }
 
+    if(gameState==="howto"){
+        const b={x:canvas.width/2-100,y:430,w:200,h:50};
+        if(hit(p.x,p.y,b)){ gameState="menu"; draw(); }
+        return;
+    }
 
-    // =================================================
-    // 초기 화면
-    // =================================================
-
-    if (gameState === "menu") {
-
-        const centerX = canvas.width / 2;
-
-        if (
-            x >= centerX - 120 &&
-            x <= centerX + 120 &&
-            y >= 255 &&
-            y <= 305
-        ) {
+    if(gameState==="ended"){
+        const b=endRects();
+        if(hit(p.x,p.y,b.main)){
+            gameState="menu";
+            showStats=false;
+            draw();
+            return;
+        }
+        if(hit(p.x,p.y,b.restart)){
             startGame();
             return;
         }
-
-        if (
-            x >= centerX - 120 &&
-            x <= centerX + 120 &&
-            y >= 325 &&
-            y <= 375
-        ) {
-            gameState = "howto";
+        if(hit(p.x,p.y,b.stats)){
+            showStats=true;
+            gameState="menu";
             draw();
             return;
         }
-
-        return;
     }
-
-
-    // =================================================
-    // 게임 설명 화면
-    // =================================================
-
-    if (gameState === "howto") {
-
-        const centerX = canvas.width / 2;
-
-        if (
-            x >= centerX - 100 &&
-            x <= centerX + 100 &&
-            y >= 430 &&
-            y <= 480
-        ) {
-            gameState = "menu";
-            draw();
-            return;
-        }
-
-        return;
-    }
-
-
-    // =================================================
-    // 게임 종료 화면
-    // =================================================
-
-    if (gameState === "ended") {
-
-        const centerX = canvas.width / 2;
-
-        const popupHeight = 510;
-
-        const popupY =
-            (canvas.height - popupHeight) / 2;
-
-        const buttonY =
-            popupY + 355;
-
-        // 초기 화면으로
-        if (
-            x >= centerX - 145 &&
-            x <= centerX - 10 &&
-            y >= buttonY &&
-            y <= buttonY + 50
-        ) {
-            gameResult = null;
-            gameState = "menu";
-            draggingTower = null;
-            draw();
-            return;
-        }
-
-        // 바로 재시작
-        if (
-            x >= centerX + 10 &&
-            x <= centerX + 145 &&
-            y >= buttonY &&
-            y <= buttonY + 50
-        ) {
-            startGame();
-            return;
-        }
-
-        return;
-    }
-
-
-    if (!gameRunning) return;
-
-
-    // =================================================
-    // 일시정지 오버레이 (열려있으면 이 버튼들만 반응)
-    // =================================================
-
-    if (gamePaused) {
-
-        const buttons =
-            getPauseModalButtonRects();
-
-        if (
-            x >= buttons.resume.x &&
-            x <= buttons.resume.x + buttons.resume.width &&
-            y >= buttons.resume.y &&
-            y <= buttons.resume.y + buttons.resume.height
-        ) {
-            togglePause();
-            return;
-        }
-
-        if (
-            x >= buttons.restart.x &&
-            x <= buttons.restart.x + buttons.restart.width &&
-            y >= buttons.restart.y &&
-            y <= buttons.restart.y + buttons.restart.height
-        ) {
-            restartGame();
-            return;
-        }
-
-        if (
-            x >= buttons.menu.x &&
-            x <= buttons.menu.x + buttons.menu.width &&
-            y >= buttons.menu.y &&
-            y <= buttons.menu.y + buttons.menu.height
-        ) {
-            returnToMainMenu();
-            return;
-        }
-
-        // 오버레이가 열려 있는 동안은
-        // 다른 어떤 입력도 받지 않습니다.
-        return;
-    }
-
-
-    // =================================================
-    // 속도 조절 / 일시정지 버튼
-    // =================================================
-
-    for (const speedValue of SPEED_VALUES) {
-
-        const rect =
-            getSpeedButtonRect(speedValue);
-
-        if (
-            x >= rect.x &&
-            x <= rect.x + rect.width &&
-            y >= rect.y &&
-            y <= rect.y + rect.height
-        ) {
-            setGameSpeed(speedValue);
-            return;
-        }
-    }
-
-    const pauseRect =
-        getPauseButtonRect();
-
-    if (
-        x >= pauseRect.x &&
-        x <= pauseRect.x + pauseRect.width &&
-        y >= pauseRect.y &&
-        y <= pauseRect.y + pauseRect.height
-    ) {
-        togglePause();
-        return;
-    }
-
-
-    // =================================================
-    // 1. 업그레이드 패널 닫기 / 버튼 확인
-    // =================================================
-
-    if (selectedTower) {
-
-        const panelWidth = 270;
-
-        const panelX =
-            canvas.width - panelWidth - 15;
-
-        const panelY = 15;
-
-        const closeX = panelX + panelWidth - 35;
-        const closeY = panelY + 10;
-        const closeWidth = 25;
-        const closeHeight = 25;
-
-        if (
-            x >= closeX &&
-            x <= closeX + closeWidth &&
-            y >= closeY &&
-            y <= closeY + closeHeight
-        ) {
-            selectedTower = null;
-            return;
-        }
-
-        const buttonX =
-            panelX + 15;
-
-        const buttonY =
-            panelY + 148;
-
-        const buttonWidth =
-            panelWidth - 30;
-
-        const buttonHeight = 38;
-
-
-        if (
-            x >= buttonX &&
-            x <= buttonX + buttonWidth &&
-            y >= buttonY &&
-            y <= buttonY + buttonHeight
-        ) {
-
-            upgradeTower(selectedTower);
-
-            // 중요:
-            // 여기서 반드시 종료
-            // 타워 설치 코드로 내려가지 않음
-
-            return;
-        }
-    }
-
-
-    // =================================================
-    // 2. 기존 타워 클릭
-    // =================================================
-
-    for (const tower of towers) {
-
-        const distance =
-            Math.hypot(
-                tower.x - x,
-                tower.y - y
-            );
-
-
-        if (distance < 25) {
-
-            selectedTower = tower;
-
-            return;
-        }
-    }
-
-
-    // =================================================
-    // 3. 맵 좌표 계산
-    // =================================================
-
-    const col =
-        Math.floor(x / TILE_SIZE);
-
-    const row =
-        Math.floor(y / TILE_SIZE);
-
-
-    if (
-        col < 0 ||
-        row < 0 ||
-        col >= COLS ||
-        row >= ROWS
-    ) {
-
-        return;
-    }
-
-
-    // =================================================
-    // 빈 공간 클릭
-    // =================================================
-
-    selectedTower = null;
-
 });
 
 
