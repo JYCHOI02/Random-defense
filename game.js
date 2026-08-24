@@ -1326,7 +1326,9 @@ function getCanvasPoint(e){
     };
 }
 function hit(px,py,r){
-    return px>=r.x && px<=r.x+r.w && py>=r.y && py<=r.y+r.h;
+    const w = r.w !== undefined ? r.w : r.width;
+    const h = r.h !== undefined ? r.h : r.height;
+    return px>=r.x && px<=r.x+w && py>=r.y && py<=r.y+h;
 }
 function menuRects(){
     const cx=canvas.width/2;
@@ -1373,6 +1375,54 @@ canvas.addEventListener("click",function(e){
         const pauseRect = getPauseButtonRect();
         if(hit(p.x,p.y,pauseRect)){
             togglePause();
+            return;
+        }
+
+        // 업그레이드 패널 (닫기 / 업그레이드 버튼)
+        if(selectedTower){
+            const panelWidth = 270;
+            const panelHeight = 200;
+            const panelX = canvas.width - panelWidth - 15;
+            const panelY = 15;
+
+            const closeRect = {x: panelX+panelWidth-35, y: panelY+10, w:25, h:25};
+            if(hit(p.x,p.y,closeRect)){
+                selectedTower = null;
+                draw();
+                return;
+            }
+
+            const upgradeRect = {x: panelX+15, y: panelY+148, w: panelWidth-30, h:38};
+            if(hit(p.x,p.y,upgradeRect)){
+                upgradeTower(selectedTower);
+                return;
+            }
+
+            // 패널 내부를 클릭한 경우 아래 보드 클릭으로 이어지지 않도록 막습니다.
+            if(p.x >= panelX && p.x <= panelX+panelWidth && p.y >= panelY && p.y <= panelY+panelHeight){
+                return;
+            }
+        }
+
+        // 보드 위 타워 클릭 -> 업그레이드 패널 열기
+        let clickedTower = null;
+        for(const tower of towers){
+            const dist = Math.hypot(tower.x - p.x, tower.y - p.y);
+            if(dist < 25){
+                clickedTower = tower;
+                break;
+            }
+        }
+
+        if(clickedTower){
+            selectedTower = clickedTower;
+            draw();
+            return;
+        }
+
+        if(selectedTower){
+            selectedTower = null;
+            draw();
             return;
         }
     }
