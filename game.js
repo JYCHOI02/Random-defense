@@ -44,12 +44,6 @@ let waveBossDefeated = false;
 let waveClearTimer = null;
 let spawnTimer = null;
 
-// 30초 생존 모드
-const SURVIVAL_TIME_MS = 30 * 1000;
-let survivalElapsedMs = 0;
-let spawnAccumulatorMs = 0;
-let survivalClearTriggered = false;
-
 // 일시정지(메뉴) / 게임 속도
 let gamePaused = false;
 let gameSpeed = 1; // 0, 1, 2
@@ -64,9 +58,8 @@ let waveClearCallback = null;
 let waveClearExpiresAt = null;
 let waveClearRemaining = null;
 
-// 기존 웨이브 시스템 값은 호환을 위해 남겨두지만, 게임 진행에는 사용하지 않습니다.
-const TOTAL_WAVES = 1;
-const WAVE_ENEMIES = [Infinity];
+const TOTAL_WAVES = 5;
+const WAVE_ENEMIES = [15, 21, 27, 36, 45];
 
 let baseHP = 100;
 let gold = 100;
@@ -214,8 +207,8 @@ let showStats = false;
 // TOWER SETTINGS
 // =====================================================
 
-const TOWER_COST = 40;          // 타워 소환 비용
-const MAX_INVENTORY = 8;
+const TOWER_COST = 15;          // 타워 소환 비용
+const MAX_INVENTORY = 10;
 
 // 타워 종류
 const towerTypes = {
@@ -776,9 +769,6 @@ function startGame() {
     enemiesDefeated = 0;
     wave = 1;
     waveEnemiesSpawned = 0;
-    survivalElapsedMs = 0;
-    spawnAccumulatorMs = 0;
-    survivalClearTriggered = false;
 
     totalGoldSpent = 0;
 
@@ -1579,55 +1569,41 @@ function upgradeTower(tower) {
 function getEnemyStats() {
 
     const roll = Math.random();
-    const elapsedSec = survivalElapsedMs / 1000;
 
-    // 시간이 지날수록 몬스터 체력과 이동속도가 증가합니다.
-    const hpScale = 1 + Math.min(elapsedSec / 30, 1) * 1.2;
-    const speedScale = 1 + Math.min(elapsedSec / 30, 1) * 0.65;
-
+    // 뭉쳐서 나오는 타입
     if (roll < 0.25) {
-        const hp = (22 + elapsedSec * 0.7) * hpScale;
+
         return {
-            hp,
-            maxHP: hp,
-            speed: (1.35 + elapsedSec * 0.025) * speedScale,
+            hp: 22 + wave * 5,
+            maxHP: 22 + wave * 5,
+            speed: 1.35 + wave * 0.06,
             type: "cluster"
         };
     }
 
-    const fastChance = 0.08 + Math.min(elapsedSec / 30, 1) * 0.37;
+    // 후반으로 갈수록 빠른 몬스터 증가
+    const fastChance =
+        wave === 1 ? 0.05 :
+        wave === 2 ? 0.15 :
+        wave === 3 ? 0.25 :
+        wave === 4 ? 0.35 : 0.45;
 
     if (Math.random() < fastChance) {
-        const hp = (24 + elapsedSec * 0.8) * hpScale;
+
         return {
-            hp,
-            maxHP: hp,
-            speed: (1.9 + elapsedSec * 0.035) * speedScale,
+            hp: 24 + wave * 5,
+            maxHP: 24 + wave * 5,
+            speed: 1.9 + wave * 0.12,
             type: "fast"
         };
     }
 
-    const hp = (30 + elapsedSec * 1.0) * hpScale;
     return {
-        hp,
-        maxHP: hp,
-        speed: (1.0 + elapsedSec * 0.02) * speedScale,
+        hp: 30 + wave * 7,
+        maxHP: 30 + wave * 7,
+        speed: 1.0 + wave * 0.05,
         type: "normal"
     };
-}
-
-
-function getSurvivalSpawnIntervalMs() {
-
-    // 시간이 지날수록 적이 더 자주 등장합니다.
-    const elapsedSec = survivalElapsedMs / 1000;
-
-    if (elapsedSec < 5) return 1000;
-    if (elapsedSec < 10) return 850;
-    if (elapsedSec < 15) return 700;
-    if (elapsedSec < 20) return 550;
-    if (elapsedSec < 25) return 420;
-    return 320;
 }
 
 
@@ -1637,72 +1613,191 @@ function spawnEnemy() {
         return;
     }
 
+    if (
+        waveEnemiesSpawned >=
+        WAVE_ENEMIES[wave - 1]
+    ) {
+        return;
+    }
+
+
     const start =
         tileCenter(
             pathTiles[0].col,
             pathTiles[0].row
         );
 
-    const stats = getEnemyStats();
+    const stats =
+        getEnemyStats();
+
+
+    enemies.push({
+
+        x: start.x,
+        y: start.y,
+
+        pathIndex: 1,
+
+        hp: stats.hp,
+        maxHP: stats.maxHP,
+
+        speed: stats.speed,
+
+        type: stats.type
+    });
+
+
+    waveEnemiesSpawned++;
+
+
+    // 후반 웨이브는 적 사이의 간격을 조금 줄여
+    // 뭉쳐서 등장하는 구간이 생기도록 합니다.
+    const spawnDelay =
+        wave === 1
+            ? 1000
+            : wave === 2
+                ? 800
+                : wave === 3
+                    ? 600
+                    : wave === 4
+                        ? 480
+                        : 380;
+
+
+    if (
+        waveEnemiesSpawned <
+        WAVE_ENEMIES[wave - 1]
+    ) {
+
+        scheduleSpawnTimer(
+            spawnEnemy,
+            spawnDelay
+        );
+
+    } else {
+
+        spawnTimer = null;
+
+        if (wave === TOTAL_WAVES) {
+            scheduleSpawnTimer(
+                spawnBoss,
+                1400
+            );
+        }
+    }
+}
+
+
+function spawnBoss() {
+
+    if (!gameRunning || wave !== TOTAL_WAVES) {
+        return;
+    }
+
+    const start =
+        tileCenter(
+            pathTiles[0].col,
+            pathTiles[0].row
+        );
+
+    const bossHP = 1200;
 
     enemies.push({
         x: start.x,
         y: start.y,
         pathIndex: 1,
-        hp: stats.hp,
-        maxHP: stats.maxHP,
-        speed: stats.speed,
-        type: stats.type
+        hp: bossHP,
+        maxHP: bossHP,
+        speed: 0.62,
+        type: "boss",
+        isBoss: true
     });
 
-    waveEnemiesSpawned++;
-}
-
-
-function spawnBoss() {
-    // 30초 생존 모드에서는 보스를 사용하지 않습니다.
+    spawnTimer = null;
 }
 
 
 function startWave() {
 
+    // 새 웨이브가 시작되면 이전 웨이브 전환 예약을 무효화합니다.
+    if (waveClearTimer) {
+        clearTimeout(waveClearTimer);
+        waveClearTimer = null;
+    }
+    waveClearCallback = null;
+    waveClearExpiresAt = null;
+    waveClearRemaining = null;
+
     if (!gameRunning) {
         return;
     }
 
+
     waveActive = true;
+
     waveEnemiesSpawned = 0;
     waveEnemiesDefeated = 0;
     waveBossDefeated = false;
 
+
     updateUI();
+
+
+    // 한 번에 2~3마리가 나오는 웨이브 구간을 추가합니다.
+    // 실제 몬스터 간격도 짧게 설정되어 자연스럽게 뭉칩니다.
+    spawnEnemy();
 }
 
-function updateSurvivalMode() {
 
-    if (!gameRunning || !waveActive || survivalClearTriggered) {
+function checkWaveClear() {
+
+    if (!gameRunning || !waveActive) {
         return;
     }
 
-    survivalElapsedMs += TICK_MS;
-    spawnAccumulatorMs += TICK_MS;
 
-    const spawnInterval = getSurvivalSpawnIntervalMs();
+    const targetCount =
+        WAVE_ENEMIES[wave - 1];
 
-    while (spawnAccumulatorMs >= spawnInterval) {
-        spawnAccumulatorMs -= spawnInterval;
-        spawnEnemy();
+
+    if (
+        waveEnemiesSpawned >= targetCount &&
+        enemies.length === 0 &&
+        (wave !== TOTAL_WAVES || waveBossDefeated)
+    ) {
+
+        waveActive = false;
+
+
+        if (wave >= TOTAL_WAVES) {
+
+            gameClear();
+            return;
+        }
+
+
+        const clearedWave = wave;
+
+        scheduleWaveClearTimer(
+            () => {
+                // 오래된 타이머가 재개되어도 웨이브를 건너뛰지 않습니다.
+                if (
+                    !gameRunning ||
+                    gameState !== "playing" ||
+                    gamePaused ||
+                    gameSpeed === 0 ||
+                    wave !== clearedWave ||
+                    waveActive
+                ) {
+                    return;
+                }
+
+                wave++;
+                startWave();
+            },
+            1800
+        );
     }
-
-    if (survivalElapsedMs >= SURVIVAL_TIME_MS) {
-        survivalElapsedMs = SURVIVAL_TIME_MS;
-        survivalClearTriggered = true;
-        gameClear();
-    }
-}
-
-function checkWaveClear() {
-    // 30초 생존 모드에서는 웨이브 클리어를 사용하지 않습니다.
 }
 
 
@@ -1731,8 +1826,15 @@ function updateEnemies() {
         // 기지 도착
         if (!targetTile) {
 
-            // 일반 몬스터가 기지에 닿으면 HP를 깎습니다.
-            baseHP -= enemy.type === "fast" ? 7 : 10;
+            if (enemy.type === "boss") {
+
+                // 보스가 기지에 도달하면 즉시 패배
+                baseHP = 0;
+
+            } else {
+
+                baseHP -= 10;
+            }
 
             enemies.splice(i, 1);
 
@@ -3450,13 +3552,8 @@ function drawWaveStatus() {
         return;
     }
 
-    const remainingMs = Math.max(0, SURVIVAL_TIME_MS - survivalElapsedMs);
-    const remainingSec = Math.ceil(remainingMs / 1000);
-    const minutes = Math.floor(remainingSec / 60);
-    const seconds = remainingSec % 60;
-    const timeText =
-        String(minutes).padStart(2, "0") + ":" +
-        String(seconds).padStart(2, "0");
+    const total =
+        WAVE_ENEMIES[wave - 1];
 
     ctx.fillStyle =
         "rgba(15,20,28,0.72)";
@@ -3464,7 +3561,7 @@ function drawWaveStatus() {
     ctx.fillRect(
         15,
         15,
-        210,
+        190,
         45
     );
 
@@ -3473,7 +3570,7 @@ function drawWaveStatus() {
     ctx.textAlign = "left";
 
     ctx.fillText(
-        "SURVIVAL " + timeText,
+        "WAVE " + wave + " / " + TOTAL_WAVES,
         28,
         35
     );
@@ -3482,7 +3579,13 @@ function drawWaveStatus() {
     ctx.font = "11px Arial";
 
     ctx.fillText(
-        "30초 동안 기지를 지키세요",
+        "Enemies: " +
+        Math.min(
+            waveEnemiesSpawned,
+            total
+        ) +
+        " / " +
+        total,
         28,
         51
     );
@@ -4225,11 +4328,10 @@ function updateUI() {
         gold;
 
 
-    const remainingSec = Math.max(0, Math.ceil((SURVIVAL_TIME_MS - survivalElapsedMs) / 1000));
-
     waveText.textContent =
-        remainingSec +
-        "초";
+        wave +
+        " / " +
+        TOTAL_WAVES;
 }
 
 
@@ -4502,7 +4604,7 @@ function drawHowToPlay() {
         "• 타워를 클릭하면 사거리와 업그레이드 정보가 표시됩니다.",
         "• 골드를 사용해 타워를 최대 3단계까지 업그레이드하세요.",
         "• 기지 HP가 0이 되면 게임 오버입니다.",
-        "• 30초 동안 기지를 지켜내면 게임 클리어입니다."
+        "• 5웨이브의 마지막 보스를 처치하면 게임 클리어입니다."
     ];
 
 
@@ -4559,7 +4661,7 @@ function drawGameEndPopup() {
     ctx.font="15px Arial";
     ctx.fillText(
         gameResult==="clear"
-        ? "30초 동안 기지를 성공적으로 지켰습니다."
+        ? "기지를 성공적으로 지켰습니다."
         : "기지가 파괴되었습니다.",
         canvas.width/2,y+78
     );
@@ -4645,7 +4747,7 @@ function updateGame() {
     updateTowers();
     updateBullets();
     updateEffects();
-    updateSurvivalMode();
+    checkWaveClear();
 }
 
 
