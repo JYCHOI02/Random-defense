@@ -4641,11 +4641,11 @@ function drawGameEndPopup() {
     ctx.fillText(`총 사용 골드: ${totalGoldSpent} GOLD`,x+45,y+115);
 
     const labels=[
-        ["NORMAL",normalCount],
-        ["RARE",rareCount],
-        ["UNIQUE",uniqueCount],
-        ["LEGENDARY",legendaryCount],
-        ["SUPER LEGEND",superLegendCount]
+        ["NORMAL",summonedByRarity.normal],
+        ["RARE",summonedByRarity.rare],
+        ["UNIQUE",summonedByRarity.unique],
+        ["LEGENDARY",summonedByRarity.legendary],
+        ["SUPER LEGEND",summonedByRarity.superLegendary]
     ];
 
     labels.forEach((item,i)=>{
