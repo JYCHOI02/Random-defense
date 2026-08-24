@@ -1346,8 +1346,8 @@ function endRects(){
     };
 }
 function statsBackRect(){
-    const w=500,h=560,x=(canvas.width-w)/2,y=(canvas.height-h)/2;
-    return {x:x+160,y:y+h-52,w:180,h:42};
+    const w=560,h=560,x=(canvas.width-w)/2,y=(canvas.height-h)/2;
+    return {x:canvas.width/2-90,y:y+h-52,w:180,h:42};
 }
 
 canvas.addEventListener("click",function(e){
@@ -4456,7 +4456,7 @@ function drawStatisticsPopup() {
     ctx.fillStyle = "rgba(0,0,0,0.65)";
     ctx.fillRect(0,0,canvas.width,canvas.height);
 
-    const width = 500;
+    const width = 560;
     const height = 560;
     const x = (canvas.width-width)/2;
     const y = (canvas.height-height)/2;
@@ -4490,7 +4490,7 @@ function drawStatisticsPopup() {
         const yy=y+103+row*24;
         ctx.fillStyle="#dce3ec";
         ctx.font="13px Arial";
-        ctx.fillText(`${item[0]}: ${item[1]}개`,x+35+col*215,yy);
+        ctx.fillText(`${item[0]}: ${item[1]}개`,x+35+col*(width-70)/2,yy);
     });
 
     ctx.textAlign="center";
@@ -4500,21 +4500,66 @@ function drawStatisticsPopup() {
 
     const records = getLeaderboard();
 
+    // 테이블 컬럼 x좌표
+    const cols = {
+        rank:      x+20,
+        gold:      x+55,
+        normal:    x+140,
+        rare:      x+205,
+        unique:    x+265,
+        legendary: x+330,
+        super:     x+405,
+        result:    x+475
+    };
+
     if(records.length===0){
+
+        ctx.textAlign="center";
         ctx.fillStyle="#aaaaaa";
         ctx.font="15px Arial";
-        ctx.fillText("아직 기록이 없습니다.",canvas.width/2,y+230);
+        ctx.fillText("아직 기록이 없습니다.",canvas.width/2,y+235);
+
     }else{
+
+        // 헤더
         ctx.textAlign="left";
-        ctx.font="bold 14px Arial";
+        ctx.fillStyle="#8e9aaa";
+        ctx.font="bold 11px Arial";
+        ctx.fillText("#",cols.rank,y+210);
+        ctx.fillText("GOLD",cols.gold,y+210);
+        ctx.fillText("NORMAL",cols.normal,y+210);
+        ctx.fillText("RARE",cols.rare,y+210);
+        ctx.fillText("UNIQUE",cols.unique,y+210);
+        ctx.fillText("LEGEND",cols.legendary,y+210);
+        ctx.fillText("SUPER",cols.super,y+210);
+        ctx.fillText("RESULT",cols.result,y+210);
+
+        ctx.strokeStyle="rgba(255,255,255,0.12)";
+        ctx.beginPath();
+        ctx.moveTo(x+20,y+218);
+        ctx.lineTo(x+width-20,y+218);
+        ctx.stroke();
+
         records.forEach((record,index)=>{
-            const yy=y+220+index*25;
+
+            const yy=y+238+index*24;
+
             ctx.fillStyle=index===0 ? "#ffd34d" : "#ffffff";
-            ctx.fillText(`${index+1}.  ${record.goldSpent} GOLD`,x+45,yy);
+            ctx.font="bold 13px Arial";
+            ctx.fillText(`${index+1}`,cols.rank,yy);
+            ctx.fillText(`${record.goldSpent}`,cols.gold,yy);
+
+            ctx.fillStyle="#dce3ec";
+            ctx.font="12px Arial";
+            ctx.fillText(`${record.normal}`,cols.normal,yy);
+            ctx.fillText(`${record.rare}`,cols.rare,yy);
+            ctx.fillText(`${record.unique}`,cols.unique,yy);
+            ctx.fillText(`${record.legendary}`,cols.legendary,yy);
+            ctx.fillText(`${record.superLegendary}`,cols.super,yy);
+
             ctx.fillStyle="#8e9aaa";
             ctx.font="12px Arial";
-            ctx.fillText(record.result==="clear" ? "CLEAR" : "GAME OVER",x+340,yy);
-            ctx.font="bold 14px Arial";
+            ctx.fillText(record.result==="clear" ? "CLEAR" : "OVER",cols.result,yy);
         });
     }
 
