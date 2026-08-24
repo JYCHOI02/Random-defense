@@ -61,6 +61,11 @@ let waveClearRemaining = null;
 const TOTAL_WAVES = 5;
 const WAVE_ENEMIES = [15, 21, 27, 36, 45];
 
+// A안: 30초 생존 타이머 - 기지가 살아있는 채로
+// 이 시간을 넘기면 클리어 처리됩니다.
+const GAME_TIME_LIMIT_MS = 30000;
+let gameTimeRemaining = GAME_TIME_LIMIT_MS;
+
 let baseHP = 100;
 let gold = 100;
 let wave = 1;
@@ -787,6 +792,8 @@ function startGame() {
 
     gamePaused = false;
     gameSpeed = 1;
+
+    gameTimeRemaining = GAME_TIME_LIMIT_MS;
 
     clearAllTimers();
 
@@ -2241,6 +2248,7 @@ function draw() {
 
     if (gameState === "playing") {
         drawWaveStatus();
+        drawTimeStatus();
         drawControlBar();
         drawTowerInventory();
     }
@@ -3593,6 +3601,71 @@ function drawWaveStatus() {
 
 
 // =====================================================
+// 생존 타이머 (A안 - 30초 서바이벌)
+// =====================================================
+
+function drawTimeStatus() {
+
+    if (gameState !== "playing") {
+        return;
+    }
+
+    const remainingSeconds =
+        Math.max(
+            0,
+            Math.ceil(
+                gameTimeRemaining / 1000
+            )
+        );
+
+    const isUrgent =
+        remainingSeconds <= 10;
+
+    const boxWidth = 170;
+    const boxHeight = 45;
+    const boxX =
+        canvas.width / 2 - boxWidth / 2;
+    const boxY = 15;
+
+    ctx.fillStyle =
+        isUrgent
+            ? "rgba(120,25,25,0.78)"
+            : "rgba(15,20,28,0.72)";
+
+    ctx.fillRect(
+        boxX,
+        boxY,
+        boxWidth,
+        boxHeight
+    );
+
+    ctx.textAlign = "center";
+
+    ctx.fillStyle = "#b8c0cc";
+    ctx.font = "11px Arial";
+
+    ctx.fillText(
+        "생존 시간",
+        canvas.width / 2,
+        boxY + 16
+    );
+
+    ctx.fillStyle =
+        isUrgent ? "#ff8f8f" : "#ffffff";
+
+    ctx.font = "bold 20px Arial";
+
+    ctx.fillText(
+        remainingSeconds + "초",
+        canvas.width / 2,
+        boxY + 38
+    );
+
+    ctx.textAlign = "left";
+}
+
+
+// =====================================================
 // UPGRADE PANEL
 // =====================================================
 
@@ -4748,6 +4821,20 @@ function updateGame() {
     updateBullets();
     updateEffects();
     checkWaveClear();
+
+    if (!gameRunning) {
+        return;
+    }
+
+    gameTimeRemaining -= TICK_MS;
+
+    if (gameTimeRemaining <= 0) {
+
+        gameTimeRemaining = 0;
+
+        // 30초 동안 기지가 살아남았다면 클리어 처리합니다.
+        gameClear();
+    }
 }
 
 
