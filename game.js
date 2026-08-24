@@ -4364,7 +4364,6 @@ function gameOver() {
 
     gameState = "ended";
     gameResult = "gameover";
-    saveLeaderboardRecord();
     selectedTower = null;
 
     draw();
