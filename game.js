@@ -12,7 +12,6 @@ const ctx = canvas.getContext("2d");
 
 const hpText = document.getElementById("hp");
 const goldText = document.getElementById("gold");
-const waveText = document.getElementById("wave");
 const startButton = document.getElementById("startButton");
 
 
@@ -37,38 +36,30 @@ let gameRunning = false;
 let gameState = "menu"; // menu / howto / playing / ended
 let gameResult = null;  // clear / gameover
 let enemiesDefeated = 0;
-let waveEnemiesSpawned = 0;
-let waveEnemiesDefeated = 0;
-let waveActive = false;
-let waveBossDefeated = false;
-let waveClearTimer = null;
 let spawnTimer = null;
+
+// 후반부에 보스가 한 번 등장했는지 여부
+let bossSpawnedThisRun = false;
 
 // 일시정지(메뉴) / 게임 속도
 let gamePaused = false;
 let gameSpeed = 1; // 0, 1, 2
 
-// spawnTimer / waveClearTimer 를 일시정지했다가
+// spawnTimer를 일시정지했다가
 // 정확히 남은 시간만큼 이어서 재개하기 위한 정보
 let spawnTimerCallback = null;
 let spawnTimerExpiresAt = null;
 let spawnTimerRemaining = null;
 
-let waveClearCallback = null;
-let waveClearExpiresAt = null;
-let waveClearRemaining = null;
-
-const TOTAL_WAVES = 5;
-const WAVE_ENEMIES = [15, 21, 27, 36, 45];
-
 // A안: 30초 생존 타이머 - 기지가 살아있는 채로
-// 이 시간을 넘기면 클리어 처리됩니다.
+// 이 시간을 넘기면 클리어 처리됩니다. 몬스터 난이도는
+// 웨이브 단위가 아니라 이 타이머 경과 시간에 따라
+// 계속 부드럽게 올라갑니다.
 const GAME_TIME_LIMIT_MS = 30000;
 let gameTimeRemaining = GAME_TIME_LIMIT_MS;
 
 let baseHP = 100;
 let gold = 100;
-let wave = 1;
 
 // =====================================================
 // RUN STATISTICS / LEADERBOARD
@@ -560,7 +551,7 @@ if (startButton) {
 
 
 // =====================================================
-// 일시정지 가능한 타이머 (스폰 / 웨이브 전환)
+// 일시정지 가능한 타이머 (몬스터 스폰)
 // =====================================================
 
 function scheduleSpawnTimer(callback, delay) {
@@ -590,33 +581,6 @@ function scheduleSpawnTimer(callback, delay) {
 }
 
 
-function scheduleWaveClearTimer(callback, delay) {
-
-    if (waveClearTimer) {
-        clearTimeout(waveClearTimer);
-        waveClearTimer = null;
-    }
-
-    const speed = gameSpeed || 1;
-    const actualDelay = Math.max(0, delay / speed);
-
-    waveClearCallback = callback;
-    waveClearExpiresAt = Date.now() + actualDelay;
-
-    waveClearTimer = setTimeout(() => {
-        waveClearTimer = null;
-        waveClearExpiresAt = null;
-        waveClearRemaining = null;
-
-        if (!gameRunning || gameState !== "playing" || isGameFrozen()) {
-            return;
-        }
-
-        callback();
-    }, actualDelay);
-}
-
-
 function pauseTimers() {
 
     if (spawnTimer) {
@@ -630,19 +594,6 @@ function pauseTimers() {
             );
 
         spawnTimer = null;
-    }
-
-    if (waveClearTimer) {
-
-        clearTimeout(waveClearTimer);
-
-        waveClearRemaining =
-            Math.max(
-                0,
-                waveClearExpiresAt - Date.now()
-            );
-
-        waveClearTimer = null;
     }
 }
 
@@ -659,17 +610,6 @@ function resumeTimers() {
         spawnTimerRemaining = null;
         scheduleSpawnTimer(callback, remaining);
     }
-
-    if (
-        waveClearTimer === null &&
-        waveClearRemaining !== null &&
-        waveClearCallback
-    ) {
-        const callback = waveClearCallback;
-        const remaining = waveClearRemaining;
-        waveClearRemaining = null;
-        scheduleWaveClearTimer(callback, remaining);
-    }
 }
 
 
@@ -680,18 +620,9 @@ function clearAllTimers() {
         spawnTimer = null;
     }
 
-    if (waveClearTimer) {
-        clearTimeout(waveClearTimer);
-        waveClearTimer = null;
-    }
-
     spawnTimerCallback = null;
     spawnTimerExpiresAt = null;
     spawnTimerRemaining = null;
-
-    waveClearCallback = null;
-    waveClearExpiresAt = null;
-    waveClearRemaining = null;
 }
 
 
@@ -772,8 +703,6 @@ function startGame() {
     gameState = "playing";
     gameResult = null;
     enemiesDefeated = 0;
-    wave = 1;
-    waveEnemiesSpawned = 0;
 
     totalGoldSpent = 0;
 
@@ -786,9 +715,7 @@ function startGame() {
     };
 
     currentRunSaved = false;
-    waveEnemiesDefeated = 0;
-    waveActive = false;
-    waveBossDefeated = false;
+    bossSpawnedThisRun = false;
 
     gamePaused = false;
     gameSpeed = 1;
@@ -799,7 +726,6 @@ function startGame() {
 
     baseHP = 100;
     gold = 100;
-    wave = 1;
 
     towers.length = 0;
     enemies.length = 0;
@@ -820,7 +746,7 @@ function startGame() {
 
     updateUI();
 
-    startWave();
+    startSpawning();
 
     lastTickTime = Date.now();
 }
@@ -1575,40 +1501,47 @@ function upgradeTower(tower) {
 
 function getEnemyStats() {
 
+    // 웨이브 대신, 게임 시작 후 흐른 시간(초)을 기준으로
+    // 난이도가 끊김 없이 계속 올라갑니다.
+    const elapsedSec =
+        (GAME_TIME_LIMIT_MS - gameTimeRemaining) / 1000;
+
+    const difficulty = 1 + elapsedSec / 6;
+
     const roll = Math.random();
 
     // 뭉쳐서 나오는 타입
     if (roll < 0.25) {
 
         return {
-            hp: 22 + wave * 5,
-            maxHP: 22 + wave * 5,
-            speed: 1.35 + wave * 0.06,
+            hp: 22 + difficulty * 5,
+            maxHP: 22 + difficulty * 5,
+            speed: 1.35 + difficulty * 0.06,
             type: "cluster"
         };
     }
 
-    // 후반으로 갈수록 빠른 몬스터 증가
+    // 시간이 지날수록 빠른 몬스터 비중 증가
     const fastChance =
-        wave === 1 ? 0.05 :
-        wave === 2 ? 0.15 :
-        wave === 3 ? 0.25 :
-        wave === 4 ? 0.35 : 0.45;
+        Math.min(
+            0.5,
+            0.05 + (difficulty - 1) * 0.09
+        );
 
     if (Math.random() < fastChance) {
 
         return {
-            hp: 24 + wave * 5,
-            maxHP: 24 + wave * 5,
-            speed: 1.9 + wave * 0.12,
+            hp: 24 + difficulty * 5,
+            maxHP: 24 + difficulty * 5,
+            speed: 1.9 + difficulty * 0.12,
             type: "fast"
         };
     }
 
     return {
-        hp: 30 + wave * 7,
-        maxHP: 30 + wave * 7,
-        speed: 1.0 + wave * 0.05,
+        hp: 30 + difficulty * 7,
+        maxHP: 30 + difficulty * 7,
+        speed: 1.0 + difficulty * 0.05,
         type: "normal"
     };
 }
@@ -1616,17 +1549,9 @@ function getEnemyStats() {
 
 function spawnEnemy() {
 
-    if (!gameRunning || !waveActive) {
+    if (!gameRunning) {
         return;
     }
-
-    if (
-        waveEnemiesSpawned >=
-        WAVE_ENEMIES[wave - 1]
-    ) {
-        return;
-    }
-
 
     const start =
         tileCenter(
@@ -1654,50 +1579,44 @@ function spawnEnemy() {
     });
 
 
-    waveEnemiesSpawned++;
+    const elapsedMs =
+        GAME_TIME_LIMIT_MS - gameTimeRemaining;
 
+    // 시간이 지날수록 적 사이 간격이 점점 짧아집니다.
+    // 시작 1000ms -> 종료 직전 320ms
+    const progress =
+        Math.min(1, elapsedMs / GAME_TIME_LIMIT_MS);
 
-    // 후반 웨이브는 적 사이의 간격을 조금 줄여
-    // 뭉쳐서 등장하는 구간이 생기도록 합니다.
     const spawnDelay =
-        wave === 1
-            ? 1000
-            : wave === 2
-                ? 800
-                : wave === 3
-                    ? 600
-                    : wave === 4
-                        ? 480
-                        : 380;
+        1000 - progress * 680;
 
 
+    // 후반부(20초 경과 시점)에 보스가 한 번 등장합니다.
     if (
-        waveEnemiesSpawned <
-        WAVE_ENEMIES[wave - 1]
+        !bossSpawnedThisRun &&
+        elapsedMs >= 20000
     ) {
 
+        bossSpawnedThisRun = true;
+
         scheduleSpawnTimer(
-            spawnEnemy,
-            spawnDelay
+            spawnBoss,
+            500
         );
 
-    } else {
-
-        spawnTimer = null;
-
-        if (wave === TOTAL_WAVES) {
-            scheduleSpawnTimer(
-                spawnBoss,
-                1400
-            );
-        }
+        return;
     }
+
+    scheduleSpawnTimer(
+        spawnEnemy,
+        spawnDelay
+    );
 }
 
 
 function spawnBoss() {
 
-    if (!gameRunning || wave !== TOTAL_WAVES) {
+    if (!gameRunning) {
         return;
     }
 
@@ -1720,97 +1639,32 @@ function spawnBoss() {
         isBoss: true
     });
 
-    spawnTimer = null;
+    // 보스가 나온 뒤에도 일반 몬스터는 계속 나옵니다.
+    scheduleSpawnTimer(
+        spawnEnemy,
+        900
+    );
 }
 
 
-function startWave() {
-
-    // 새 웨이브가 시작되면 이전 웨이브 전환 예약을 무효화합니다.
-    if (waveClearTimer) {
-        clearTimeout(waveClearTimer);
-        waveClearTimer = null;
-    }
-    waveClearCallback = null;
-    waveClearExpiresAt = null;
-    waveClearRemaining = null;
+function startSpawning() {
 
     if (!gameRunning) {
         return;
     }
 
-
-    waveActive = true;
-
-    waveEnemiesSpawned = 0;
-    waveEnemiesDefeated = 0;
-    waveBossDefeated = false;
-
+    bossSpawnedThisRun = false;
 
     updateUI();
 
-
-    // 한 번에 2~3마리가 나오는 웨이브 구간을 추가합니다.
-    // 실제 몬스터 간격도 짧게 설정되어 자연스럽게 뭉칩니다.
     spawnEnemy();
-}
-
-
-function checkWaveClear() {
-
-    if (!gameRunning || !waveActive) {
-        return;
-    }
-
-
-    const targetCount =
-        WAVE_ENEMIES[wave - 1];
-
-
-    if (
-        waveEnemiesSpawned >= targetCount &&
-        enemies.length === 0 &&
-        (wave !== TOTAL_WAVES || waveBossDefeated)
-    ) {
-
-        waveActive = false;
-
-
-        if (wave >= TOTAL_WAVES) {
-
-            gameClear();
-            return;
-        }
-
-
-        const clearedWave = wave;
-
-        scheduleWaveClearTimer(
-            () => {
-                // 오래된 타이머가 재개되어도 웨이브를 건너뛰지 않습니다.
-                if (
-                    !gameRunning ||
-                    gameState !== "playing" ||
-                    gamePaused ||
-                    gameSpeed === 0 ||
-                    wave !== clearedWave ||
-                    waveActive
-                ) {
-                    return;
-                }
-
-                wave++;
-                startWave();
-            },
-            1800
-        );
-    }
 }
 
 
 // =====================================================
 // ENEMY UPDATE
 // =====================================================
+
 
 function updateEnemies() {
 
@@ -2125,7 +1979,6 @@ function updateBullets() {
                     );
 
                     if (enemy.type === "boss") {
-                        waveBossDefeated = true;
                         gold += 100;
                     } else {
                         enemiesDefeated++;
@@ -2247,7 +2100,6 @@ function draw() {
     drawTowers();
 
     if (gameState === "playing") {
-        drawWaveStatus();
         drawTimeStatus();
         drawControlBar();
         drawTowerInventory();
@@ -3356,10 +3208,6 @@ function drawTowerInventory() {
 
 
 // =====================================================
-// WAVE STATUS
-// =====================================================
-
-// =====================================================
 // 속도 조절 / 일시정지 버튼
 // =====================================================
 
@@ -3554,52 +3402,6 @@ function drawPauseOverlay() {
 }
 
 
-function drawWaveStatus() {
-
-    if (gameState !== "playing") {
-        return;
-    }
-
-    const total =
-        WAVE_ENEMIES[wave - 1];
-
-    ctx.fillStyle =
-        "rgba(15,20,28,0.72)";
-
-    ctx.fillRect(
-        15,
-        15,
-        190,
-        45
-    );
-
-    ctx.fillStyle = "#ffffff";
-    ctx.font = "bold 14px Arial";
-    ctx.textAlign = "left";
-
-    ctx.fillText(
-        "WAVE " + wave + " / " + TOTAL_WAVES,
-        28,
-        35
-    );
-
-    ctx.fillStyle = "#b8c0cc";
-    ctx.font = "11px Arial";
-
-    ctx.fillText(
-        "Enemies: " +
-        Math.min(
-            waveEnemiesSpawned,
-            total
-        ) +
-        " / " +
-        total,
-        28,
-        51
-    );
-}
-
-
 // =====================================================
 // 생존 타이머 (A안 - 30초 서바이벌)
 // =====================================================
@@ -3621,11 +3423,10 @@ function drawTimeStatus() {
     const isUrgent =
         remainingSeconds <= 10;
 
-    const boxWidth = 170;
-    const boxHeight = 45;
-    const boxX =
-        canvas.width / 2 - boxWidth / 2;
+    const boxX = 15;
     const boxY = 15;
+    const boxWidth = 190;
+    const boxHeight = 45;
 
     ctx.fillStyle =
         isUrgent
@@ -3639,14 +3440,14 @@ function drawTimeStatus() {
         boxHeight
     );
 
-    ctx.textAlign = "center";
+    ctx.textAlign = "left";
 
     ctx.fillStyle = "#b8c0cc";
     ctx.font = "11px Arial";
 
     ctx.fillText(
         "생존 시간",
-        canvas.width / 2,
+        boxX + 13,
         boxY + 16
     );
 
@@ -3657,11 +3458,9 @@ function drawTimeStatus() {
 
     ctx.fillText(
         remainingSeconds + "초",
-        canvas.width / 2,
+        boxX + 13,
         boxY + 38
     );
-
-    ctx.textAlign = "left";
 }
 
 
@@ -4399,12 +4198,6 @@ function updateUI() {
 
     goldText.textContent =
         gold;
-
-
-    waveText.textContent =
-        wave +
-        " / " +
-        TOTAL_WAVES;
 }
 
 
@@ -4415,7 +4208,6 @@ function updateUI() {
 function gameClear() {
 
     gameRunning = false;
-    waveActive = false;
 
     clearAllTimers();
 
@@ -4431,7 +4223,6 @@ function gameClear() {
 function gameOver() {
 
     gameRunning = false;
-    waveActive = false;
 
     clearAllTimers();
 
@@ -4820,7 +4611,6 @@ function updateGame() {
     updateTowers();
     updateBullets();
     updateEffects();
-    checkWaveClear();
 
     if (!gameRunning) {
         return;
