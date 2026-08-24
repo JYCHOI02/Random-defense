@@ -201,7 +201,6 @@ let mouseRow = -1;
 let hoveredTower = null;
 let selectedTower = null;
 let showStats = false;
-let currentRarityCounts = {normal:0, rare:0, unique:0, legendary:0, super:0};
 
 
 // =====================================================
@@ -4452,18 +4451,6 @@ function drawMainMenu() {
 }
 
 
-function getGoldRecords(){
-    try{
-        const raw=localStorage.getItem("towerDefenseGoldRecords");
-        const data=raw?JSON.parse(raw):[];
-        return Array.isArray(data)
-            ? data.sort((a,b)=>a.gold-b.gold).slice(0,10)
-            : [];
-    }catch(e){
-        return [];
-    }
-}
-
 function drawStatisticsPopup() {
 
     ctx.fillStyle = "rgba(0,0,0,0.65)";
@@ -4483,7 +4470,7 @@ function drawStatisticsPopup() {
     ctx.textAlign = "center";
     ctx.fillStyle = "#ffffff";
     ctx.font = "bold 25px Arial";
-    ctx.fillText("GOLD SPENDING TOP 10",canvas.width/2,y+40);
+    ctx.fillText("STATISTICS",canvas.width/2,y+40);
 
     ctx.textAlign="left";
     ctx.fillStyle="#ffffff";
@@ -4491,11 +4478,11 @@ function drawStatisticsPopup() {
     ctx.fillText("THIS GAME - TOWER RARITY",x+35,y+75);
 
     const currentLabels=[
-        ["NORMAL",currentRarityCounts.normal],
-        ["RARE",currentRarityCounts.rare],
-        ["UNIQUE",currentRarityCounts.unique],
-        ["LEGENDARY",currentRarityCounts.legendary],
-        ["SUPER LEGEND",currentRarityCounts.super]
+        ["NORMAL",summonedByRarity.normal],
+        ["RARE",summonedByRarity.rare],
+        ["UNIQUE",summonedByRarity.unique],
+        ["LEGENDARY",summonedByRarity.legendary],
+        ["SUPER LEGEND",summonedByRarity.superLegendary]
     ];
 
     currentLabels.forEach((item,i)=>{
@@ -4511,19 +4498,19 @@ function drawStatisticsPopup() {
     ctx.font="bold 15px Arial";
     ctx.fillText("GOLD SPENDING TOP 10",canvas.width/2,y+190);
 
-    const records = getGoldRecords();
+    const records = getLeaderboard();
 
     if(records.length===0){
         ctx.fillStyle="#aaaaaa";
         ctx.font="15px Arial";
-        ctx.fillText("아직 기록이 없습니다.",canvas.width/2,y+105);
+        ctx.fillText("아직 기록이 없습니다.",canvas.width/2,y+230);
     }else{
         ctx.textAlign="left";
         ctx.font="bold 14px Arial";
         records.forEach((record,index)=>{
-            const yy=y+215+index*25;
+            const yy=y+220+index*25;
             ctx.fillStyle=index===0 ? "#ffd34d" : "#ffffff";
-            ctx.fillText(`${index+1}.  ${record.gold} GOLD`,x+45,yy);
+            ctx.fillText(`${index+1}.  ${record.goldSpent} GOLD`,x+45,yy);
             ctx.fillStyle="#8e9aaa";
             ctx.font="12px Arial";
             ctx.fillText(record.result==="clear" ? "CLEAR" : "GAME OVER",x+340,yy);
