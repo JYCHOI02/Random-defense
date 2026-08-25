@@ -657,9 +657,22 @@ function setGameSpeed(speed) {
 }
 
 
+// 연타 방지: 핵심 동작별 마지막 실행 시각 (ms)
+let lastUpgradeTime = 0;
+let lastSellTime = 0;
+let lastPauseTime = 0;
+
+const ACTION_COOLDOWN_MS = 300; // 동일 동작 최소 간격
+const PAUSE_COOLDOWN_MS  = 500; // 퍼즈는 토글 특성상 더 길게
+
+
 function togglePause() {
 
     if (gameState !== "playing") return;
+
+    const now = Date.now();
+    if (now - lastPauseTime < PAUSE_COOLDOWN_MS) return;
+    lastPauseTime = now;
 
     gamePaused = !gamePaused;
 
@@ -796,21 +809,18 @@ function getSellButtonRect(index) {
 
 function sellInventoryTower(index) {
 
-    const towerData =
-        towerInventory[index];
+    const now = Date.now();
+    if (now - lastSellTime < ACTION_COOLDOWN_MS) return;
+    lastSellTime = now;
 
+    const towerData = towerInventory[index];
     if (!towerData) return;
 
-    const rarity =
-        towerRarities[towerData.rarity];
-
-    const sellPrice =
-        rarity.sellPrice || 0;
+    const rarity = towerRarities[towerData.rarity];
+    const sellPrice = rarity.sellPrice || 0;
 
     gold += sellPrice;
-
     towerInventory.splice(index, 1);
-
     draggingTower = null;
 
     updateUI();
@@ -1304,7 +1314,10 @@ canvas.addEventListener("click",function(e){
 
         const pauseRect = getPauseButtonRect();
         if(hit(p.x,p.y,pauseRect)){
-            togglePause();
+            // 퍼즈 버튼은 항상 "일시정지 열기"만 담당합니다.
+            // 재개는 퍼즈 모달의 "게임 재개" 버튼으로만 가능하여
+            // 연타해도 상태가 뒤집히지 않습니다.
+            if (!gamePaused) togglePause();
             return;
         }
 
@@ -1408,10 +1421,11 @@ canvas.addEventListener("click",function(e){
 function upgradeTower(tower) {
 
     if (!tower) return;
+    if (tower.level >= 3) return;
 
-    if (tower.level >= 3) {
-        return;
-    }
+    const now = Date.now();
+    if (now - lastUpgradeTime < ACTION_COOLDOWN_MS) return;
+    lastUpgradeTime = now;
 
     const currentLevel =
         tower.level;
