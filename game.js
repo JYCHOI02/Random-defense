@@ -1514,9 +1514,9 @@ function getEnemyStats() {
     if (roll < 0.25) {
 
         return {
-            hp: 22 + difficulty * 5,
-            maxHP: 22 + difficulty * 5,
-            speed: 1.35 + difficulty * 0.06,
+            hp: (22 + difficulty * 5) * 1.5,
+            maxHP: (22 + difficulty * 5) * 1.5,
+            speed: (1.35 + difficulty * 0.06) * 1.5,
             type: "cluster"
         };
     }
@@ -1531,17 +1531,17 @@ function getEnemyStats() {
     if (Math.random() < fastChance) {
 
         return {
-            hp: 24 + difficulty * 5,
-            maxHP: 24 + difficulty * 5,
-            speed: 1.9 + difficulty * 0.12,
+            hp: (24 + difficulty * 5) * 1.5,
+            maxHP: (24 + difficulty * 5) * 1.5,
+            speed: (1.9 + difficulty * 0.12) * 1.5,
             type: "fast"
         };
     }
 
     return {
-        hp: 30 + difficulty * 7,
-        maxHP: 30 + difficulty * 7,
-        speed: 1.0 + difficulty * 0.05,
+        hp: (30 + difficulty * 7) * 1.5,
+        maxHP: (30 + difficulty * 7) * 1.5,
+        speed: (1.0 + difficulty * 0.05) * 1.5,
         type: "normal"
     };
 }
