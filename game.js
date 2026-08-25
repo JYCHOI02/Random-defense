@@ -203,7 +203,7 @@ let showStats = false;
 // TOWER SETTINGS
 // =====================================================
 
-const TOWER_COST = 15;          // 타워 소환 비용
+const TOWER_COST = 20;          // 타워 소환 비용
 const MAX_INVENTORY = 10;
 
 // 타워 종류
@@ -241,7 +241,7 @@ const towerRarities = {
         chance: 59.9,
         multiplier: 1.0,
         color: "#c9c9c9",
-        sellPrice: 20
+        sellPrice: 10
     },
 
     rare: {
@@ -250,7 +250,7 @@ const towerRarities = {
         chance: 25.0,
         multiplier: 1.5,
         color: "#4da3ff",
-        sellPrice: 30
+        sellPrice: 15
     },
 
     unique: {
@@ -259,7 +259,7 @@ const towerRarities = {
         chance: 13.0,
         multiplier: 1.8,
         color: "#b56cff",
-        sellPrice: 60
+        sellPrice: 30
     },
 
     legendary: {
